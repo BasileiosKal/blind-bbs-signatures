@@ -48,7 +48,7 @@ This document defines an extension to the BBS Signature scheme that supports bli
 
 # Introduction
 
-The BBS Signatures scheme, as defined in [@!I-D.irtf-cfrg-bbs-signatures-03] can be extended to support blind signatures functionality. In a blind signatures setting, the Prover wants to get a BBS signature over a list of messages, without revealing those messages to the Signer. To do that, they construct a "hiding" commitment to those messages (i.e., a commitment which reveals no information about the committed values), together with a proof of correctness of that commitment. They will then send the (commitment, proof) pair to the Signer. Upon receiving that pair, the Signer will first have to verify the proof of correctness of the commitment. If the commitment is valid, they will then be able to use it in generating a BBS signature. The resulting signature will be a valid BBS signature over the messages committed by the Prover. The Signer can optionally include messages to the signature, in addition to the ones committed by the prover. Upon receiving the blind BBS signature, the Prover can verify it using the messages they committed to together with the messages the Signer included to the signature, and then use it to generate BBS proofs normally, as described in [@!I-D.irtf-cfrg-bbs-signatures-03].
+The BBS Signatures scheme, as defined in [@!I-D.irtf-cfrg-bbs-signatures] can be extended to support blind signatures functionality. In a blind signatures setting, the Prover wants to get a BBS signature over a list of messages, without revealing those messages to the Signer. To do that, they construct a "hiding" commitment to those messages (i.e., a commitment which reveals no information about the committed values), together with a proof of correctness of that commitment. They will then send the (commitment, proof) pair to the Signer. Upon receiving that pair, the Signer will first have to verify the proof of correctness of the commitment. If the commitment is valid, they will then be able to use it in generating a BBS signature. The resulting signature will be a valid BBS signature over the messages committed by the Prover. The Signer can optionally include messages to the signature, in addition to the ones committed by the prover. Upon receiving the blind BBS signature, the Prover can verify it using the messages they committed to together with the messages the Signer included to the signature, and then use it to generate BBS proofs normally, as described in [@!I-D.irtf-cfrg-bbs-signatures].
 
 Below is a basic diagram describing the main entities involved in the scheme.
 !---
@@ -70,8 +70,8 @@ Below is a basic diagram describing the main entities involved in the scheme.
                                                               |
                                                               |
                                                               |
-                                                       (5)* Send proof 
-                                                              + 
+                                                       (5)* Send proof
+                                                              +
                                                         disclosed msgs
                                                               |
                                                               |
@@ -98,7 +98,7 @@ Figure: Basic diagram capturing the main entities involved in using the scheme.
 
 ## Terminology
 
-Terminology defined by [@!I-D.irtf-cfrg-bbs-signatures-03] applies to this draft.
+Terminology defined by [@!I-D.irtf-cfrg-bbs-signatures] applies to this draft.
 
 Additionally, the following terminology is used throughout this document:
 
@@ -106,7 +106,7 @@ blind\_signature
 : The blind digital signature output.
 
 commitment
-: A Pedersen commitment ([@P91]) constructed over a list of messages.
+: A Pedersen commitment ([@P91]) constructed over a vector of messages, as described e.g., in [@BG18].
 
 committed\_messages
 : A list of messages committed by the Prover to a commitment.
@@ -119,7 +119,7 @@ signer\_blind
 
 ## Notation
 
-Notation defined by [@!I-D.irtf-cfrg-bbs-signatures-03] applies to this draft.
+Notation defined by [@!I-D.irtf-cfrg-bbs-signatures] applies to this draft.
 
 Additionally, the following notation and primitives are used:
 
@@ -139,7 +139,7 @@ document, are to be interpreted as described in [@!RFC2119].
 
 ### Commitment Computation
 
-This operation is used by the Prover to create `commitment` to a set of messages (`committed_messages`), that they intent to include to the signature. Note that this operation returns both the serialized commitment 
+This operation is used by the Prover to create `commitment` to a set of messages (`committed_messages`), that they intent to include to the signature. Note that this operation returns both the serialized commitment as well as the random scalar used to blind it (`prover_blind`).
 
 This operation uses the the `get_random_scalars` operation defined in [TODO].
 
@@ -332,14 +332,14 @@ Procedure:
 3. message_scalars.append(messages_to_scalars(messages, api_id))
 
 4. generators = create_generators(L + M + 2, api_id)
-5. res = BBS.CoreVerify(PK, signature, generators, header, messages, 
+5. res = BBS.CoreVerify(PK, signature, generators, header, messages,
                                                                  api_id)
 6. return res
 ```
 
 ### Proof Generation
 
-This operation creates a BBS proof, which is a zero-knowledge, proof-of-knowledge, of a BBS signature, while optionally disclosing any subset of the signed messages. Note that in contrast to the `ProofGen` operation of [@!I-D.irtf-cfrg-bbs-signatures-03] (see [Section 3.5.3](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-generation-proofgen)), the `ProofGen` operation defined in this section accepts 2 different lists of messages and disclosed indexes, one for the messages known to the Signer (`messages`) and teh corresponding disclosed indexes (`disclosed_indexes`) and one for the messages committed by the Prover (`committed_messages`) and the corresponding disclosed indexes (`disclosed_commitment_indexes`).
+This operation creates a BBS proof, which is a zero-knowledge, proof-of-knowledge, of a BBS signature, while optionally disclosing any subset of the signed messages. Note that in contrast to the `ProofGen` operation of [@!I-D.irtf-cfrg-bbs-signatures] (see [Section 3.5.3](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-generation-proofgen)), the `ProofGen` operation defined in this section accepts 2 different lists of messages and disclosed indexes, one for the messages known to the Signer (`messages`) and teh corresponding disclosed indexes (`disclosed_indexes`) and one for the messages committed by the Prover (`committed_messages`) and the corresponding disclosed indexes (`disclosed_commitment_indexes`).
 
 To Verify a proof however, the Verifier expects only one list of messages and one list of disclosed indexes (see (#proof-verification)). This is done to not reveal to the proof Verifier which of the disclosed messages where committed by the Prover and which are known to the Verifier. See (#present-and-verify-a-bbs-proof) on how the Prover should combine the disclosed messages and the disclosed indexes in order to present them to the Verifier.
 
@@ -429,7 +429,7 @@ Procedure:
 
 ### Proof Verification
 
-The proof verification operation for blind signatures works exactly as the `ProofVerify` operation defined in [Section 3.5.4](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-verification-proofver) of [@!I-D.irtf-cfrg-bbs-signatures-03], instantiated with the following parameter
+The proof verification operation for blind signatures works exactly as the `ProofVerify` operation defined in [Section 3.5.4](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-verification-proofver) of [@!I-D.irtf-cfrg-bbs-signatures], instantiated with the following parameter
 
 ```
 api_id = ciphersuite_id || "BLIND_H2G_HM2S_", where ciphersuite_id is
@@ -743,10 +743,24 @@ This document does not make any requests of IANA.
 <reference anchor="P91" target="https://ia.cr/2023/275">
   <front>
     <title>Non-Interactive and Information-Theoretic Secure Verifiable Secret Sharing</title>
-    <author initials="T. P." surname="Pedersen" fullname="Torden Pryds Pedersen">
+    <author initials="T." surname="Pedersen" fullname="Torden Pryds Pedersen">
       <organization>Aarhus University</organization>
     </author>
     <date year="1991"/>
+  </front>
+  <seriesInfo name="In" value="CRYPTO"/>
+</reference>
+
+<reference anchor="BG18" target="https://link.springer.com/chapter/10.1007/978-3-319-76581-5_19">
+  <front>
+    <title>Efficient Batch Zero-Knowledge Arguments for Low Degree Polynomials</title>
+    <author initials="J." surname="Bootle" fullname="Jonathan Bootle">
+      <organization>University College London</organization>
+    </author>
+    <author initials="J." surname="Groth" fullname="Jens Groth">
+      <organization>University College London</organization>
+    </author>
+    <date year="2018"/>
   </front>
   <seriesInfo name="In" value="CRYPTO"/>
 </reference>
