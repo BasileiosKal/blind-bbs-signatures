@@ -32,29 +32,30 @@ Table of Contents
      1.1.  Terminology
      1.2.  Notation
    2.  Conventions
-   3.  Scheme Definition
-     3.1.  Commitment Operations
-       3.1.1.  Commitment Computation
-       3.1.2.  Commitment Verification
-     3.2.  Blind BBS Signatures Interface
-       3.2.1.  Blind Signature Generation
-       3.2.2.  Blind Signature Verification
-       3.2.3.  Proof Generation
-       3.2.4.  Proof Verification
-     3.3.  Core Operations
-       3.3.1.  Core Blind Sign
-   4.  Present and Verify a BBS Proof
-   5.  Utilities
-     5.1.  Blind Challenge Calculation
-     5.2.  Commitment Validation and Deserialization
-     5.3.  Serialize
-       5.3.1.  Commitment to Octets
-       5.3.2.  Octet to Commitment
-   6.  Security Considerations
-   7.  Ciphersuites
-   8.  IANA Considerations
-   9.  Normative References
-   10. Informative References
+   3.  BBS Signature Scheme Operations
+   4.  Scheme Definition
+     4.1.  Commitment Operations
+       4.1.1.  Commitment Computation
+       4.1.2.  Commitment Verification
+     4.2.  Blind BBS Signatures Interface
+       4.2.1.  Blind Signature Generation
+       4.2.2.  Blind Signature Verification
+       4.2.3.  Proof Generation
+       4.2.4.  Proof Verification
+     4.3.  Core Operations
+       4.3.1.  Core Blind Sign
+   5.  Present and Verify a BBS Proof
+   6.  Utilities
+     6.1.  Blind Challenge Calculation
+     6.2.  Commitment Validation and Deserialization
+     6.3.  Serialize
+       6.3.1.  Commitment to Octets
+       6.3.2.  Octet to Commitment
+   7.  Security Considerations
+   8.  Ciphersuites
+   9.  IANA Considerations
+   10. Normative References
+   11. Informative References
    Appendix A.  Appendix
      A.1.  Test Vectors
    Authors' Addresses
@@ -165,11 +166,42 @@ Table of Contents
    SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL, when they appear in this
    document, are to be interpreted as described in [RFC2119].
 
-3.  Scheme Definition
+3.  BBS Signature Scheme Operations
 
-3.1.  Commitment Operations
+   This document makes use of various operations defined by the BBS
+   Signature Scheme document [I-D.irtf-cfrg-bbs-signatures].  For
+   clarity, whenever an operation will be used defined in
+   [I-D.irtf-cfrg-bbs-signatures], it will be prefixed by "BBS." (e.g.,
+   "BBS.CoreProofGen" etc.).  More specifically, the operations used are
+   the following:
 
-3.1.1.  Commitment Computation
+   *  BBS.CoreVerify: Refers to the CoreVerify operation defined in
+      Section 3.6.2 (https://www.ietf.org/archive/id/draft-irtf-cfrg-
+      bbs-signatures-04.html#name-coreverify) of
+      [I-D.irtf-cfrg-bbs-signatures].
+   *  BBS.CoreProofGen: Refers to the CoreProofGen operation defined in
+      Section 3.6.3 (https://www.ietf.org/archive/id/draft-irtf-cfrg-
+      bbs-signatures-04.html#name-coreproofgen) of
+      [I-D.irtf-cfrg-bbs-signatures].
+   *  BBS.create_generators: Refers to the create_generators operation
+      defined in Section 4.1.1 (https://www.ietf.org/archive/id/draft-
+      irtf-cfrg-bbs-signatures-04.html#name-generators-calculation) of
+      [I-D.irtf-cfrg-bbs-signatures].
+   *  BBS.messages_to_scalars: Refers to the messages_to_scalars
+      operation defined in Section 4.1.2
+      (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-
+      04.html#name-messages-to-scalars) of
+      [I-D.irtf-cfrg-bbs-signatures].
+   *  BBS.get_random_scalars: Refers to the get_random_scalars operation
+      defined in Section 4.2.1 (https://www.ietf.org/archive/id/draft-
+      irtf-cfrg-bbs-signatures-04.html#name-random-scalars) of
+      [I-D.irtf-cfrg-bbs-signatures].
+
+4.  Scheme Definition
+
+4.1.  Commitment Operations
+
+4.1.1.  Commitment Computation
 
    This operation is used by the Prover to create commitment to a set of
    messages (committed_messages), that they intent to include to the
@@ -177,42 +209,39 @@ Table of Contents
    commitment as well as the random scalar used to blind it
    (prover_blind).
 
-   This operation uses the the get_random_scalars operation defined in
-   [TODO].
+ commitment = Commit(committed_messages)
 
-   commitment = Commit(committed_messages)
+ Inputs:
 
-   Inputs:
+ - committed_messages (OPTIONAL), a vector of octet strings. If not
+                                  supplied it defaults to the empty
+                                  array "()".
 
-   - committed_messages (OPTIONAL), a vector of octet strings. If not
-                                    supplied it defaults to the empty
-                                    array "()".
+ Outputs:
 
-   Outputs:
+ - blind_result, a vector comprising from an octet string and a random
+                 scalar in that order.
 
-   - blind_result, a vector comprising from an octet string and a random
-                   scalar in that order.
+ Procedure:
 
-   Procedure:
+ 1.  generators = BBS.create_generators(M + 2, api_id)
+ 2.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
 
-   1.  generators = create_generators(M + 2, api_id)
-   2.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
+ 2.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages)
+ 3.  (prover_blind, s~, m~_1, ..., m~_M) = BBS.get_random_scalars(M + 2)
 
-   2.  (msg_1, ..., msg_M) = messages_to_scalars(committed_messages)
-   3.  (prover_blind, s~, m~_1, ..., m~_M) = get_random_scalars(M + 2)
+ 4.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
+ 5.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
 
-   4.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
-   5.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
+ 6.  challenge = calculate_blind_challenge(C, Cbar, M, generators)
 
-   6.  challenge = calculate_blind_challenge(C, Cbar, M, generators)
+ 7.  s^ = s~ + prover_blind * challenge
+ 8.  for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
+ 9.  proof = (s^, (m^_1, ..., m^_M), challenge)
+ 10. commitment_octs = commitment_to_octets(C, proof)
+ 10. return (commitment_octs, prover_blind)
 
-   7.  s^ = s~ + prover_blind * challenge
-   8.  for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
-   9.  proof = (s^, (m^_1, ..., m^_M), challenge)
-   10. commitment_octs = commitment_to_octets(C, proof)
-   10. return (commitment_octs, prover_blind)
-
-3.1.2.  Commitment Verification
+4.1.2.  Commitment Verification
 
    This operation is used by the Signer to verify the correctness of a
    supplied commitment, over a list of points of G1 called the
@@ -246,20 +275,49 @@ Procedure:
 3. if cv != cp, return INVALID
 4. return VALID
 
-3.2.  Blind BBS Signatures Interface
+4.2.  Blind BBS Signatures Interface
 
-3.2.1.  Blind Signature Generation
+   The following section defines a BBS Interface for blind BBS
+   signatures.  The identifier of the Interface is defined as
+   ciphersuite_id || BLIND_H2G_HM2S_, where ciphersuite_id the unique
+   identifier of the BBS ciphersuite used, as is defined in Section 6
+   (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-
+   03.html#name-ciphersuites) of [I-D.irtf-cfrg-bbs-signatures]).  Each
+   BBS Interface MUST define operations to map the inputted messages to
+   scalar values and to create the generators set, required by the core
+   operations.  The inputted messages to the defined Interface will be
+   mapped to scalars using the messages_to_scalars operation defined in
+   Section 4.1.2 (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-
+   signatures-04.html#name-messages-to-scalars) of
+   [I-D.irtf-cfrg-bbs-signatures].  The generators will be created using
+   the create_generators operation defined in Section Section 4.1.1
+   (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-
+   04.html#name-generators-calculation) of
+   [I-D.irtf-cfrg-bbs-signatures].
+
+   Other than the CoreSign operation (Section 3.6.1
+   (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-
+   04.html#name-coresign) of [I-D.irtf-cfrg-bbs-signatures]), all other
+   procedures defined by the following Interface, use the core
+   operations defined in Section 3.6 (https://www.ietf.org/archive/id/
+   draft-irtf-cfrg-bbs-signatures-04.html#name-core-operations) of
+   [I-D.irtf-cfrg-bbs-signatures].
+
+4.2.1.  Blind Signature Generation
 
    This operation returns a BBS blind signature from a secret key (SK),
    over a header, a set of messages and optionally a commitment value,
-   as outputted by the Commit operation (Section 3.1.1).  The issuer can
+   as outputted by the Commit operation (Section 4.1.1).  The issuer can
    also further randomize the supplied commitment, by supplying a random
    scalar (signer_blind), that MUST be computed as,
 
-   signer_blind = get_random_scalars(1)
+   signer_blind = BBS.get_random_scalars(1)
 
    If the signer_blind input is not supplied, it will default to the
    zero scalar (0).
+
+   The BlindSign operation makes use of the CoreBlindSign procedure
+   defined in Section 4.3.1.
 
 blind_signature = BlindSign(SK, PK, commitment, header, messages,
                                                            signer_blind)
@@ -302,13 +360,13 @@ Deserialization:
 
 Procedure:
 
-1. all_generators = create_generators(M + L + 2, api_id)
+1. all_generators = BBS.create_generators(M + L + 2, api_id)
 2. generators = all_generators[0]
 3. blind_generators = all_generators[1]
 4. blind_generators.append(all_generators[2..M])
 5. generators.append(all_generators(M + 2..M + L + 2))
 
-5. message_scalars = messages_to_scalars(messages)
+5. message_scalars = BBS.messages_to_scalars(messages)
 
 6. blind_sig = CoreBlindSign(SK,
                              PK,
@@ -322,14 +380,19 @@ Procedure:
 7. if blind_sig is INVALID, return INVALID
 8. return blind_sig
 
-3.2.2.  Blind Signature Verification
+4.2.2.  Blind Signature Verification
 
    This operation validates a blind BBS signature (signature), given the
    Signer's public key (PK), a header (header), a set of known to the
    Signer messages (messages) and if used, a set of committed messages
    (committed_messages), the prover_blind as returned by the Commit
-   operation (Section 3.1.1) and a blind factor supplied by the Signer
+   operation (Section 4.1.1) and a blind factor supplied by the Signer
    (signer_blind).
+
+   This operation makes use of the CoreVerify operation as defined in
+   Section 3.6.2 (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-
+   signatures-04.html#name-coreverify) of
+   [I-D.irtf-cfrg-bbs-signatures].
 
 result = Verify(PK, signature, header, messages, committed_messages,
                                              prover_blind, signer_blind)
@@ -367,16 +430,16 @@ Outputs:
 Procedure:
 
 1. message_scalars = (prover_blind + signer_blind)
-2. message_scalars.append(messages_to_scalars(
+2. message_scalars.append(BBS.messages_to_scalars(
                                        committed_messages, api_id))
-3. message_scalars.append(messages_to_scalars(messages, api_id))
+3. message_scalars.append(BBS.messages_to_scalars(messages, api_id))
 
-4. generators = create_generators(L + M + 2, api_id)
+4. generators = BBS.create_generators(L + M + 2, api_id)
 5. res = BBS.CoreVerify(PK, signature, generators, header, messages,
                                                                  api_id)
 6. return res
 
-3.2.3.  Proof Generation
+4.2.3.  Proof Generation
 
    This operation creates a BBS proof, which is a zero-knowledge, proof-
    of-knowledge, of a BBS signature, while optionally disclosing any
@@ -392,31 +455,36 @@ Procedure:
    (disclosed_commitment_indexes).
 
    To Verify a proof however, the Verifier expects only one list of
-   messages and one list of disclosed indexes (see Section 3.2.4).  This
+   messages and one list of disclosed indexes (see Section 4.2.4).  This
    is done to not reveal to the proof Verifier which of the disclosed
    messages where committed by the Prover and which are known to the
-   Verifier.  See Section 4 on how the Prover should combine the
+   Verifier.  See Section 5 on how the Prover should combine the
    disclosed messages and the disclosed indexes in order to present them
    to the Verifier.
 
    Lastly, the the operation also expects the prover_blind (as returned
-   from the Commit operation defined in Section 3.1.1) and signer_blind
-   (as inputted in the BlindSign operation defined in Section 3.2.1)
+   from the Commit operation defined in Section 4.1.1) and signer_blind
+   (as inputted in the BlindSign operation defined in Section 4.2.1)
    values.  If the BBS signature is generated using a commitment value,
    then the prover_blind returned by the Commit operation used to
    generate the commitment should be provided to the ProofGen operation
    (otherwise the resulting proof will be invalid).
 
-proof = ProofGen(PK,
-                 signature,
-                 header,
-                 ph,
-                 messages,
-                 committed_messages,
-                 disclosed_indexes,
-                 disclosed_commitment_indexes,
-                 prover_blind,
-                 signer_blind)
+   This operation makes use of the CoreProofGen operation as defined in
+   Section 3.6.3 (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-
+   signatures-04.html#name-coreproofgen) of
+   [I-D.irtf-cfrg-bbs-signatures].
+
+proof = BlindProofGen(PK,
+                      signature,
+                      header,
+                      ph,
+                      messages,
+                      committed_messages,
+                      disclosed_indexes,
+                      disclosed_commitment_indexes,
+                      prover_blind,
+                      signer_blind)
 
 Inputs:
 
@@ -473,11 +541,11 @@ Deserialization:
 Procedure:
 
 1. message_scalars = (prover_blind + signer_blind)
-2. message_scalars.append(messages_to_scalars(
+2. message_scalars.append(BBS.messages_to_scalars(
                                    committed_messages, api_id))
-3. message_scalars.append(messages_to_scalars(messages, api_id))
+3. message_scalars.append(BBS.messages_to_scalars(messages, api_id))
 
-4. generators = create_generators(L + M + 2, api_id)
+4. generators = BBS.create_generators(L + M + 2, api_id)
 
 5. indexes = ()
 7. for i in disclosed_commitment_indexes: indexes.append(i + 1)
@@ -487,26 +555,28 @@ Procedure:
                                        message_scalars, indexes, api_id)
 9. return proof
 
-3.2.4.  Proof Verification
+4.2.4.  Proof Verification
 
-   The proof verification operation for blind signatures works exactly
-   as the ProofVerify operation defined in Section 3.5.4
-   (https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-
-   signatures.html#name-proof-verification-proofver) of
-   [I-D.irtf-cfrg-bbs-signatures], instantiated with the following
-   parameter
+   To verify a proof generated by the BlindProofGen operation defined in
+   Section 4.2.3, the Verifier can directly use the ProofVerify
+   operation defined in Section 3.5.4 (https://identity.foundation/bbs-
+   signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-
+   verification-proofver) of [I-D.irtf-cfrg-bbs-signatures],
+   instantiated with the following parameter
 
    api_id = ciphersuite_id || "BLIND_H2G_HM2S_", where ciphersuite_id is
             defined by the ciphersuite and "BLIND_H2G_HM2S_"is an ASCII
             string comprised of 15 bytes.
 
-   Note that the Prover should follow the procedure described in
-   Section 4 to prepare the data that will be supplied to the proof
-   Verifier.
+   The purpose of the above, is to reduce the information a Verifier may
+   get, regarding which of the disclosed messages where committed by the
+   Prover and which where known to the Issuer.  For this purpose, the
+   Prover MUST follow the procedure described in Section 5 to prepare
+   the data that will be supplied to the proof Verifier.
 
-3.3.  Core Operations
+4.3.  Core Operations
 
-3.3.1.  Core Blind Sign
+4.3.1.  Core Blind Sign
 
    This operation computes a blind BBS signature, from a secret key (SK)
    over a supplied commitment (commitment), a header (header) and a set
@@ -589,7 +659,7 @@ Procedure:
 
 11. return signature
 
-4.  Present and Verify a BBS Proof
+5.  Present and Verify a BBS Proof
 
    To avoid revealing to the proof Verifier which messages are committed
    to the signature, and which where known to the Signer, after
@@ -653,9 +723,9 @@ Procedure:
 
 9. return(disclosed_messages, indexes)
 
-5.  Utilities
+6.  Utilities
 
-5.1.  Blind Challenge Calculation
+6.1.  Blind Challenge Calculation
 
  challenge = calculate_blind_challenge(C, Cbar, generators)
 
@@ -688,10 +758,10 @@ Procedure:
  4. c_octs = serialize(c_arr)
  5. return hash_to_scalar(c_octs, blind_challenge_dst)
 
-5.2.  Commitment Validation and Deserialization
+6.2.  Commitment Validation and Deserialization
 
    The following is a helper operation used by the CoreBlindSign
-   procedure (Section 3.3.1) to de-serialize and then validate a
+   procedure (Section 4.3.1) to de-serialize and then validate a
    supplied commitment.  Note that the commitment input to CoreBlindSign
    is optional.  If a commitment is not supplied, the following
    operation will return the Identity_G1 as the commitment point, which
@@ -722,9 +792,9 @@ Procedure:
 6. if validation_res is INVALID, return INVALID
 7. return com_res
 
-5.3.  Serialize
+6.3.  Serialize
 
-5.3.1.  Commitment to Octets
+6.3.1.  Commitment to Octets
 
  commitment_octets = commitment_to_octets(commitment, proof)
 
@@ -746,7 +816,7 @@ Procedure:
  4. if proof_octs is INVALID, return INVALID
  5. return commitment_octs || proof_octs
 
-5.3.2.  Octet to Commitment
+6.3.2.  Octet to Commitment
 
 commitment = octets_to_commitment(commitment_octs)
 
@@ -787,19 +857,19 @@ Procedure:
 16. if j >= 3, set msg_commitment = (s_2, ..., s_(j-1))
 17. return (C, (s_0, msg_commitments, s_j))
 
-6.  Security Considerations
+7.  Security Considerations
 
    // TODO
 
-7.  Ciphersuites
+8.  Ciphersuites
 
    // TODO
 
-8.  IANA Considerations
+9.  IANA Considerations
 
    This document does not make any requests of IANA.
 
-9.  Normative References
+10.  Normative References
 
    [I-D.irtf-cfrg-bbs-signatures]
               Looker, T., Kalos, V., Whitehead, A., and M. Lodder, "The
@@ -813,7 +883,7 @@ Procedure:
               DOI 10.17487/RFC2119, March 1997,
               <https://www.rfc-editor.org/info/rfc2119>.
 
-10.  Informative References
+11.  Informative References
 
    [BG18]     Bootle, J. and J. Groth, "Efficient Batch Zero-Knowledge
               Arguments for Low Degree Polynomials", In CRYPTO, 2018,
