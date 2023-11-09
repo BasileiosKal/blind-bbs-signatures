@@ -7,7 +7,7 @@ none                                                            V. Kalos
                                                                    MATTR
                                                             A. Whitehead
                                                                  Portage
-                                                         6 November 2023
+                                                         9 November 2023
 
 
                           Blind BBS Signatures
@@ -209,37 +209,40 @@ Table of Contents
    commitment as well as the random scalar used to blind it
    (prover_blind).
 
- commitment = Commit(committed_messages)
+commitment = Commit(committed_messages, api_id)
 
- Inputs:
+Inputs:
 
- - committed_messages (OPTIONAL), a vector of octet strings. If not
-                                  supplied it defaults to the empty
-                                  array "()".
+- committed_messages (OPTIONAL), a vector of octet strings. If not
+                                 supplied it defaults to the empty
+                                 array "()".
+- api_id (OPTIONAL), octet string. If not supplied it defaults to the
+                     empty octet string ("").
 
- Outputs:
+Outputs:
 
- - blind_result, a vector comprising from an octet string and a random
-                 scalar in that order.
+- blind_result, a vector comprising from an octet string and a random
+                scalar in that order.
 
- Procedure:
+Procedure:
 
- 1.  generators = BBS.create_generators(M + 2, api_id)
- 2.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
+1.  M = length(messages)
+2.  generators = BBS.create_generators(M + 2, api_id)
+3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
 
- 2.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages)
- 3.  (prover_blind, s~, m~_1, ..., m~_M) = BBS.get_random_scalars(M + 2)
+4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages, api_id)
+5.  (prover_blind, s~, m~_1, ..., m~_M) = BBS.get_random_scalars(M + 2)
 
- 4.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
- 5.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
+6.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
+7.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
 
- 6.  challenge = calculate_blind_challenge(C, Cbar, M, generators)
+8.  challenge = calculate_blind_challenge(C, Cbar, generators, api_id)
 
- 7.  s^ = s~ + prover_blind * challenge
- 8.  for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
- 9.  proof = (s^, (m^_1, ..., m^_M), challenge)
- 10. commitment_octs = commitment_to_octets(C, proof)
- 10. return (commitment_octs, prover_blind)
+9.  s^ = s~ + prover_blind * challenge
+10. for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
+11. proof = (s^, (m^_1, ..., m^_M), challenge)
+12. commitment_with_proof_octs = commitment_to_octets(C, proof)
+13. return (commitment_with_proof_octs, prover_blind)
 
 4.1.2.  Commitment Verification
 
@@ -247,7 +250,7 @@ Table of Contents
    supplied commitment, over a list of points of G1 called the
    blind_generators.
 
-res = verify_commitment(commitment, blind_generators)
+res = verify_commitment(commitment, blind_generators, api_id)
 
 Inputs:
 
@@ -256,6 +259,8 @@ Inputs:
                          empty set of scalars and another scalar, in
                          that order.
 - blind_generators (REQUIRED), vector of pseudo-random points in G1.
+- api_id (OPTIONAL), octet string. If not supplied it defaults to the
+                     empty octet string ("").
 
 Deserialization:
 
@@ -271,7 +276,7 @@ Deserialization:
 Procedure:
 
 1. Cbar = Q_2 * s^ + J_1 * m^_1 + ... + J_M * m^_M + Com * (-cp)
-2. cv = calculate_blind_challenge(Com, Cbar, M, blind_generators)
+2. cv = calculate_blind_challenge(Com, Cbar, blind_generators, api_id)
 3. if cv != cp, return INVALID
 4. return VALID
 
@@ -366,7 +371,7 @@ Procedure:
 4. blind_generators.append(all_generators[2..M])
 5. generators.append(all_generators(M + 2..M + L + 2))
 
-5. message_scalars = BBS.messages_to_scalars(messages)
+5. message_scalars = BBS.messages_to_scalars(messages, api_id)
 
 6. blind_sig = CoreBlindSign(SK,
                              PK,
@@ -630,8 +635,8 @@ Deserialization:
 3. if length(generators) != L + 1, return INVALID
 4. (Q_1, H_1, ..., H_L) = generators
 
-5. M = length(blind_generators) - 1
-6. if M < 0, return INVALID
+5. if length(blind_generators) == 0, return INVALID
+6. M = length(blind_generators) - 1
 7. all_generators = (generators[0],
                      blind_generators[0],
                      blind_generators[1..M],
@@ -640,8 +645,10 @@ Deserialization:
 Procedure:
 
 // Verify the commitment's proof of correctness
-1.  commitment_res = commitment_validate_and_deserialize(commitment,
-                                                       blind_generators)
+1.  commitment_res = commitment_validate_and_deserialize(
+                                                       commitment,
+                                                       blind_generators,
+                                                       api_id)
 2.  if commitment_res is INVALID, return INVALID
 // if commitment == "", then commitment_res = (Identity_G1, ())
 3.  (Com, _) = commitment_res
@@ -727,7 +734,7 @@ Procedure:
 
 6.1.  Blind Challenge Calculation
 
- challenge = calculate_blind_challenge(C, Cbar, generators)
+ challenge = calculate_blind_challenge(C, Cbar, generators, api_id)
 
  Inputs:
 
@@ -735,28 +742,27 @@ Procedure:
  - Cbar (REQUIRED), a point of G1.
  - generators (REQUIRED), an array of points from G1, of length at
                           least 1.
+ - api_id (OPTIONAL), octet string. If not supplied it defaults to the
+                      empty octet string ("").
 
- Parameters:
+ Definition:
 
  - blind_challenge_dst, an octet string representing the domain
-                        separation tag: ciphersuite_id || "H2S_" where
+                        separation tag: api_id || "H2S_" where
                         ciphersuite_id is defined by the ciphersuite and
                         "H2S_" is an ASCII string comprised of 4 bytes.
 
  Deserialization:
 
- 1. Q_2 = generators[0]
- 2. J_Points = ()
- 3. M = length(generators) - 1
- 4. if M > 0, J_Points = generators[1..M]
+ 1. if length(generators) == 0, return INVALID
+ 2. M = length(generators) - 1
 
  Procedure:
 
- 1. c_arr = (C, Cbar, M, Q_2)
- 2. if M > 0, c_arr.append(J_Points)
- 3. c_arr.append(api_id)
- 4. c_octs = serialize(c_arr)
- 5. return hash_to_scalar(c_octs, blind_challenge_dst)
+ 1. c_arr = (C, Cbar, M)
+ 2. c_arr.append(generators)
+ 3. c_octs = serialize(c_arr)
+ 4. return hash_to_scalar(c_octs, blind_challenge_dst)
 
 6.2.  Commitment Validation and Deserialization
 
@@ -767,7 +773,9 @@ Procedure:
    operation will return the Identity_G1 as the commitment point, which
    will be ignored by all computations during CoreBlindSign.
 
-res = commitment_validate_and_deserialize(commitment, blind_generators)
+res = commitment_validate_and_deserialize(commitment,
+                                          blind_generators,
+                                          api_id)
 
 Inputs:
 
@@ -776,6 +784,8 @@ Inputs:
 - blind_generators (OPTIONAL), vector of points of G1. If it is not
                                supplied it defaults to the empty set
                                ("()").
+- api_id (OPTIONAL), octet string. If not supplied it defaults to the
+                     empty octet string ("").
 
 Outputs:
 
@@ -788,7 +798,7 @@ Procedure:
 1. if commitment is the empty string (""), return (Identity_G1, ())
 2. com_res = commitment_to_octets(commitment)
 3. if com_res is INVALID, return INVALID
-5. validation_res = verify_commitment(com_res, blind_generators)
+5. validation_res = verify_commitment(com_res, blind_generators, api_id)
 6. if validation_res is INVALID, return INVALID
 7. return com_res
 
