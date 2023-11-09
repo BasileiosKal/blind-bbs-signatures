@@ -178,7 +178,7 @@ Procedure:
 6.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
 7.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
 
-8.  challenge = calculate_blind_challenge(C, Cbar, generators)
+8.  challenge = calculate_blind_challenge(C, Cbar, generators, api_id)
 
 9.  s^ = s~ + prover_blind * challenge
 10. for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
@@ -192,7 +192,7 @@ Procedure:
 This operation is used by the Signer to verify the correctness of a supplied `commitment`, over a list of points of G1 called the `blind_generators`.
 
 ```
-res = verify_commitment(commitment, blind_generators)
+res = verify_commitment(commitment, blind_generators, api_id)
 
 Inputs:
 
@@ -201,6 +201,8 @@ Inputs:
                          empty set of scalars and another scalar, in
                          that order.
 - blind_generators (REQUIRED), vector of pseudo-random points in G1.
+- api_id (OPTIONAL), octet string. If not supplied it defaults to the
+                     empty octet string ("").
 
 Deserialization:
 
@@ -216,7 +218,7 @@ Deserialization:
 Procedure:
 
 1. Cbar = Q_2 * s^ + J_1 * m^_1 + ... + J_M * m^_M + Com * (-cp)
-2. cv = calculate_blind_challenge(Com, Cbar, M, blind_generators)
+2. cv = calculate_blind_challenge(Com, Cbar, blind_generators, api_id)
 3. if cv != cp, return INVALID
 4. return VALID
 ```
@@ -524,8 +526,10 @@ Deserialization:
 Procedure:
 
 // Verify the commitment's proof of correctness
-1.  commitment_res = commitment_validate_and_deserialize(commitment,
-                                                       blind_generators)
+1.  commitment_res = commitment_validate_and_deserialize(
+                                                       commitment,
+                                                       blind_generators,
+                                                       api_id)
 2.  if commitment_res is INVALID, return INVALID
 // if commitment == "", then commitment_res = (Identity_G1, ())
 3.  (Com, _) = commitment_res
@@ -608,7 +612,7 @@ Procedure:
 ## Blind Challenge Calculation
 
 ```
-challenge = calculate_blind_challenge(C, Cbar, generators)
+challenge = calculate_blind_challenge(C, Cbar, generators, api_id)
 
 Inputs:
 
@@ -616,28 +620,27 @@ Inputs:
 - Cbar (REQUIRED), a point of G1.
 - generators (REQUIRED), an array of points from G1, of length at
                          least 1.
+- api_id (OPTIONAL), octet string. If not supplied it defaults to the
+                     empty octet string ("").
 
-Parameters:
+Definition:
 
 - blind_challenge_dst, an octet string representing the domain
-                       separation tag: ciphersuite_id || "H2S_" where
+                       separation tag: api_id || "H2S_" where
                        ciphersuite_id is defined by the ciphersuite and
                        "H2S_" is an ASCII string comprised of 4 bytes.
 
 Deserialization:
 
-1. Q_2 = generators[0]
-2. J_Points = ()
-3. M = length(generators) - 1
-4. if M > 0, J_Points = generators[1..M]
+1. if length(generators) == 0, return INVALID
+2. M = length(generators) - 1
 
 Procedure:
 
-1. c_arr = (C, Cbar, M, Q_2)
-2. if M > 0, c_arr.append(J_Points)
-3. c_arr.append(api_id)
-4. c_octs = serialize(c_arr)
-5. return hash_to_scalar(c_octs, blind_challenge_dst)
+1. c_arr = (C, Cbar, M)
+2. c_arr.append(generators)
+3. c_octs = serialize(c_arr)
+4. return hash_to_scalar(c_octs, blind_challenge_dst)
 ```
 
 ##  Commitment Validation and Deserialization
@@ -645,7 +648,9 @@ Procedure:
 The following is a helper operation used by the `CoreBlindSign` procedure ((#core-blind-sign)) to de-serialize and then validate a supplied commitment. Note that the `commitment` input to `CoreBlindSign` is optional. If a `commitment` is not supplied, the following operation will return the `Identity_G1` as the commitment point, which will be ignored by all computations during `CoreBlindSign`.
 
 ```
-res = commitment_validate_and_deserialize(commitment, blind_generators)
+res = commitment_validate_and_deserialize(commitment,
+                                          blind_generators,
+                                          api_id)
 
 Inputs:
 
@@ -654,6 +659,8 @@ Inputs:
 - blind_generators (OPTIONAL), vector of points of G1. If it is not
                                supplied it defaults to the empty set
                                ("()").
+- api_id (OPTIONAL), octet string. If not supplied it defaults to the
+                     empty octet string ("").
 
 Outputs:
 
@@ -666,7 +673,7 @@ Procedure:
 1. if commitment is the empty string (""), return (Identity_G1, ())
 2. com_res = commitment_to_octets(commitment)
 3. if com_res is INVALID, return INVALID
-5. validation_res = verify_commitment(com_res, blind_generators)
+5. validation_res = verify_commitment(com_res, blind_generators, api_id)
 6. if validation_res is INVALID, return INVALID
 7. return com_res
 ```
