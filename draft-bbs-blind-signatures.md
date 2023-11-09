@@ -151,13 +151,15 @@ This document makes use of various operations defined by the BBS Signature Schem
 This operation is used by the Prover to create `commitment` to a set of messages (`committed_messages`), that they intent to include to the signature. Note that this operation returns both the serialized commitment as well as the random scalar used to blind it (`prover_blind`).
 
 ```
-commitment = Commit(committed_messages)
+commitment = Commit(committed_messages, api_id)
 
 Inputs:
 
 - committed_messages (OPTIONAL), a vector of octet strings. If not
                                  supplied it defaults to the empty
                                  array "()".
+- api_id (OPTIONAL), octet string. If not supplied it defaults to the
+                     empty octet string ("").
 
 Outputs:
 
@@ -166,22 +168,23 @@ Outputs:
 
 Procedure:
 
-1.  generators = BBS.create_generators(M + 2, api_id)
-2.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
+1.  M = length(messages)
+2.  generators = BBS.create_generators(M + 2, api_id)
+3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
 
-2.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages)
-3.  (prover_blind, s~, m~_1, ..., m~_M) = BBS.get_random_scalars(M + 2)
+4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages, api_id)
+5.  (prover_blind, s~, m~_1, ..., m~_M) = BBS.get_random_scalars(M + 2)
 
-4.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
-5.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
+6.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
+7.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
 
-6.  challenge = calculate_blind_challenge(C, Cbar, M, generators)
+8.  challenge = calculate_blind_challenge(C, Cbar, generators)
 
-7.  s^ = s~ + prover_blind * challenge
-8.  for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
-9.  proof = (s^, (m^_1, ..., m^_M), challenge)
-10. commitment_octs = commitment_to_octets(C, proof)
-10. return (commitment_octs, prover_blind)
+9.  s^ = s~ + prover_blind * challenge
+10. for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
+11. proof = (s^, (m^_1, ..., m^_M), challenge)
+12. commitment_with_proof_octs = commitment_to_octets(C, proof)
+13. return (commitment_with_proof_octs, prover_blind)
 ```
 
 ### Commitment Verification
@@ -284,7 +287,7 @@ Procedure:
 4. blind_generators.append(all_generators[2..M])
 5. generators.append(all_generators(M + 2..M + L + 2))
 
-5. message_scalars = BBS.messages_to_scalars(messages)
+5. message_scalars = BBS.messages_to_scalars(messages, api_id)
 
 6. blind_sig = CoreBlindSign(SK,
                              PK,
@@ -511,8 +514,8 @@ Deserialization:
 3. if length(generators) != L + 1, return INVALID
 4. (Q_1, H_1, ..., H_L) = generators
 
-5. M = length(blind_generators) - 1
-6. if M < 0, return INVALID
+5. if length(blind_generators) == 0, return INVALID
+6. M = length(blind_generators) - 1
 7. all_generators = (generators[0],
                      blind_generators[0],
                      blind_generators[1..M],
