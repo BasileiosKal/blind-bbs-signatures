@@ -1,0 +1,17 @@
+{
+  "caseName": "valid no prover committed messages, no signer messages signature",
+  "signerKeyPair": {
+    "secretKey": "2eee0f60a8a3a8bec0ee942bfd46cbdae9a0738ee68f5a64e7238311cf09a079",
+    "publicKey": "92d37d1d6cd38fea3a873953333eab23a4c0377e3e049974eb62bd45949cdeb18fb0490edcd4429adff56e65cbce42cf188b31bddbd619e419b99c2c41b38179eb001963bc3decaae0d9f702c7a8c004f207f46c734a5eae2e8e82833f3e7ea5"
+  },
+  "commitmentWithProof": "a3406b2d5bdc0a70b7f07b62a6a9e1eb4189359bc49ebfd2c11e74d89f8f1b42da3a117e6cca24f939339c8478df912469d8424b7cfcebba817644626c4c5f545bb639b604427b208d64b36f5b636c2520d1ce141ce3e1aaf67a6a586b5c3e31774fb8c7c69a8e2a90e5bcfdfd5b5e7a",
+  "header": "11223344556677889900aabbccddeeff",
+  "messages": [],
+  "committedMessages": [],
+  "proverBlind": "52dc91d160201df73653d773f6f0ad92323bd32bcee06f55628bcb1f7be16d0f",
+  "signerBlind": "1354847962758ff25c97e1f62a3cdc6984a1e1cd13c728b8ed48a032d671b46e",
+  "signature": "98aee8a7007fcc54546c5582acb110468979315c0569d86a07594d1dc36950f816481da327eda6018721da6d86fdbae25452360eb09e6c897a825c2238bbf664c02a06bf01cf901ff1586bb65f710933",
+  "result": {
+    "valid": true
+  }
+}

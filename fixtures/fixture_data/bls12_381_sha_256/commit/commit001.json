@@ -1,0 +1,9 @@
+{
+  "caseName": "valid no committed messages commitment with proof",
+  "committedMessages": [],
+  "proverBlind": "6927e01d197b032e1935e3b9c5f596a1cacf96fc3db486f74c4029e7948270fb",
+  "commitmentWithProof": "8f6f2fc63c651515b981a138d5c1c0f31ba56f8c72fac086fe7853d6fb972e9034808135ed5d8e00f5a1752c669bd124582df258c55a54529a0266017b457f1ebed5545bc7804712ec90392a3a1f5b444193f2125cc3f5ac6854465f0a1278d3b47ec1edd287c2a051e8251770a70987",
+  "result": {
+    "valid": true
+  }
+}
