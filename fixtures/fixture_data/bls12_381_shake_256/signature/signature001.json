@@ -1,16 +1,31 @@
 {
   "caseName": "valid no prover committed messages, no signer messages signature",
+  "mockRngParameters": {
+    "SEED": "3.141592653589793238462643383279",
+    "commit": {
+      "DST": "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDOM_SCALARS_DST_",
+      "count": 3
+    },
+    "signature": {
+      "DST": "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_RANDOM_SCALARS_DST_",
+      "count": 1
+    }
+  },
   "signerKeyPair": {
     "secretKey": "2eee0f60a8a3a8bec0ee942bfd46cbdae9a0738ee68f5a64e7238311cf09a079",
     "publicKey": "92d37d1d6cd38fea3a873953333eab23a4c0377e3e049974eb62bd45949cdeb18fb0490edcd4429adff56e65cbce42cf188b31bddbd619e419b99c2c41b38179eb001963bc3decaae0d9f702c7a8c004f207f46c734a5eae2e8e82833f3e7ea5"
   },
-  "commitmentWithProof": "a3406b2d5bdc0a70b7f07b62a6a9e1eb4189359bc49ebfd2c11e74d89f8f1b42da3a117e6cca24f939339c8478df912469d8424b7cfcebba817644626c4c5f545bb639b604427b208d64b36f5b636c2520d1ce141ce3e1aaf67a6a586b5c3e31774fb8c7c69a8e2a90e5bcfdfd5b5e7a",
+  "commitmentWithProof": "8cdb7fb0750140d7d6a21525bef3e6923d905f3eb8556936d5d67b1aec65e5ca3a8d2a6841c4d45e22f597cb5567d85c4dbdd199b8975a6313c86328c5c0ad714b970ec0e5ed92abfad2c6cb8857a0f96164f648c04118c9f9b710549f6f6a18141c1691c46ce77d6cf660e7b423d42d629608ab8a2e0169b15019f0d477e7a843510105afdc5212f9d7fe88c62bfcc9",
   "header": "11223344556677889900aabbccddeeff",
-  "messages": [],
-  "committedMessages": [],
-  "proverBlind": "52dc91d160201df73653d773f6f0ad92323bd32bcee06f55628bcb1f7be16d0f",
-  "signerBlind": "1354847962758ff25c97e1f62a3cdc6984a1e1cd13c728b8ed48a032d671b46e",
-  "signature": "98aee8a7007fcc54546c5582acb110468979315c0569d86a07594d1dc36950f816481da327eda6018721da6d86fdbae25452360eb09e6c897a825c2238bbf664c02a06bf01cf901ff1586bb65f710933",
+  "messages": [
+    ""
+  ],
+  "committedMessages": [
+    ""
+  ],
+  "proverBlind": "643a0c0bc86a50e0d8c00bfe6c8debd85373597e1aef6cc912838bf7dc376e48",
+  "signerBlind": "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0a1e3c7f",
+  "signature": "aa620bdea25f4d65cef35c3b8c00ac091ebd4ff8819fa4164147ee58609fcae5f217050162fe0d1ba3ce271df3715fe959646b063a0c65c295efd7e2087a7c90340275c5b7c4f6f662ed752f25cebe6a",
   "result": {
     "valid": true
   }

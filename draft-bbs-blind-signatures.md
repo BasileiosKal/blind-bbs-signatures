@@ -151,7 +151,7 @@ This document makes use of various operations defined by the BBS Signature Schem
 
 ### Commitment Computation
 
-This operation is used by the Prover to create `commitment` to a set of messages (`committed_messages`), that they intent to include to the signature. Note that this operation returns both the serialized commitment as well as the random scalar used to blind it (`prover_blind`).
+This operation is used by the Prover to create `commitment` to a set of messages (`committed_messages`), that they intent to include to the signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`prover_blind`).
 
 ```
 (commitment_with_proof, prover_blind) = Commit(committed_messages,
@@ -195,7 +195,7 @@ Procedure:
 
 ### Commitment Verification
 
-This operation is used by the Signer to verify the correctness of a supplied `commitment`, over a list of points of G1 called the `blind_generators`.
+This operation is used by the Signer to verify the correctness of a `commitment_proof` for a supplied `commitment`, over a list of points of G1 called the `blind_generators`, used to generate that commitment.
 
 ```
 result = verify_commitment(commitment, commitment_proof,
@@ -236,11 +236,11 @@ Procedure:
 
 The following section defines a BBS Interface for blind BBS signatures. The identifier of the Interface is defined as `ciphersuite_id || BLIND_H2G_HM2S_`, where `ciphersuite_id` the unique identifier of the BBS ciphersuite used, as is defined in [Section 6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-03.html#name-ciphersuites) of [@!I-D.irtf-cfrg-bbs-signatures]). Each BBS Interface MUST define operations to map the inputted messages to scalar values and to create the generators set, required by the core operations. The inputted messages to the defined Interface will be mapped to scalars using the `messages_to_scalars` operation defined in [Section 4.1.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-messages-to-scalars) of [@!I-D.irtf-cfrg-bbs-signatures]. The generators will be created using the `create_generators` operation defined in Section [Section 4.1.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-generators-calculation) of [@!I-D.irtf-cfrg-bbs-signatures].
 
-Other than the `CoreSign` operation ([Section 3.6.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coresign) of [@!I-D.irtf-cfrg-bbs-signatures]), all other procedures defined by the following Interface, use the core operations defined in [Section 3.6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-core-operations) of [@!I-D.irtf-cfrg-bbs-signatures].
+Other than the `BlindSign` operation defined in (#blind-signature-generation), which uses the `CoreBlindSign` procedure, defined in (#core-blind-sign), all other interface operations defined in this section use the core operations defined in [Section 3.6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-core-operations) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 ### Blind Signature Generation
 
-This operation returns a BBS blind signature from a secret key (SK), over a header, a set of messages and optionally a commitment value, as outputted by the `Commit` operation ((#commitment-computation)). The issuer can also further randomize the supplied commitment, by supplying a random scalar (`signer_blind`), that MUST be computed as,
+This operation returns a BBS blind signature from a secret key (SK), over a header, a set of messages and optionally a commitment value (see (#terminology)). If supplied, the commitment value must be accompanied by its proof of correctness (`commitment_with_proof`), as the first element outputted by the `Commit` operation ((#commitment-computation)). The issuer can also further randomize the supplied commitment, by supplying a random scalar (`signer_blind`), that MUST be computed as,
 
 ```
 signer_blind = BBS.get_random_scalars(1)
@@ -294,8 +294,7 @@ Deserialization:
 // calculate the number of blind generators used by the commitment,
 // if any.
 2. M = length(commitment_with_proof)
-3. if commitment_with_proof != "", M = M - octet_point_length
-                                                  - octet_scalar_length
+3. if M != 0, M = M - octet_point_length - octet_scalar_length
 4. M = M / octet_scalar_length
 5. if M < 0, return INVALID
 
@@ -382,7 +381,7 @@ Procedure:
 
 This operation creates a BBS proof, which is a zero-knowledge, proof-of-knowledge, of a BBS signature, while optionally disclosing any subset of the signed messages. Note that in contrast to the `ProofGen` operation of [@!I-D.irtf-cfrg-bbs-signatures] (see [Section 3.5.3](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-generation-proofgen)), the `ProofGen` operation defined in this section accepts 2 different lists of messages and disclosed indexes, one for the messages known to the Signer (`messages`) and teh corresponding disclosed indexes (`disclosed_indexes`) and one for the messages committed by the Prover (`committed_messages`) and the corresponding disclosed indexes (`disclosed_commitment_indexes`).
 
-To Verify a proof however, the Verifier expects only one list of messages and one list of disclosed indexes (see (#proof-verification)). This is done to not reveal to the proof Verifier which of the disclosed messages where committed by the Prover and which are known to the Verifier. See (#present-and-verify-a-bbs-proof) on how the Prover should combine the disclosed messages and the disclosed indexes in order to present them to the Verifier.
+To Verify a proof however, the Verifier expects only one list of messages and one list of disclosed indexes (see (#proof-verification)). This is done to avoid revealing which of the disclosed messages where committed by the Prover and which are known to the Verifier. To this end, the `BlindProofGen` operation defined in this section, uses the `get_disclosed_data` defined in (#present-and-verify-a-bbs-proof) to combine and return the disclosed messages and the disclosed indexes that the prover should present to the Verifier.
 
 Lastly, the the operation also expects the `prover_blind` (as returned from the `Commit` operation defined in (#commitment-computation)) and `signer_blind` (as inputted in the `BlindSign` operation defined in (#blind-signature-generation)) values. If the BBS signature is generated using a commitment value, then the `prover_blind` returned by the `Commit` operation used to generate the commitment should be provided to the `ProofGen` operation (otherwise the resulting proof will be invalid).
 
@@ -391,16 +390,17 @@ Note that the `BlindProofGen` operation defined in this section returns both the
 This operation makes use of the `CoreProofGen` operation as defined in [Section 3.6.3](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coreproofgen) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 ```
-(proof, disclosed_data) = BlindProofGen(PK,
-                                        signature,
-                                        header,
-                                        ph,
-                                        messages,
-                                        committed_messages,
-                                        disclosed_indexes,
-                                        disclosed_commitment_indexes,
-                                        prover_blind,
-                                        signer_blind)
+(proof, disclosed_msgs, disclosed_idxs)
+                           = BlindProofGen(PK,
+                                           signature,
+                                           header,
+                                           ph,
+                                           messages,
+                                           committed_messages,
+                                           disclosed_indexes,
+                                           disclosed_commitment_indexes,
+                                           prover_blind,
+                                           signer_blind)
 
 Inputs:
 
@@ -442,8 +442,10 @@ Parameters:
 
 Outputs:
 
-- (proof, disclosed_data) a tuple comprising from an octet string and a
-                          vector of octet strings; or INVALID.
+- (proof, disclosed_msgs, disclosed_idxs) a tuple comprising from an
+                                          octet string, an array of
+                                          octet strings and an array of
+                                          non-zero integers; or INVALID.
 
 Deserialization:
 
@@ -467,21 +469,18 @@ Procedure:
 
 6.  generators = BBS.create_generators(length(message_scalars) + 1,
                                                                  api_id)
-
-7.  indexes = ()
-8.  for i in disclosed_commitment_indexes: indexes.append(i + 1)
-9.  for j in disclosed_indexes: indexes.append(M + j + 1)
-
-10. proof = BBS.CoreProofGen(PK, signature, generators, header, ph,
-                                       message_scalars, indexes, api_id)
-
-11. disclosed_data = get_disclosed_data(
+7.  disclosed_data = get_disclosed_data(
                                   messages,
                                   committed_messages,
                                   disclosed_indexes,
                                   disclosed_commitment_indexes,
                                   commitment_used)
-12. return (proof, disclosed_data)
+8.  if disclosed_data is INVALID, return INVALID.
+9.  (disclosed_msgs, disclosed_idxs) = disclosed_data
+
+10. proof = BBS.CoreProofGen(PK, signature, generators, header, ph,
+                                message_scalars, disclosed_idxs, api_id)
+11. return (proof, disclosed_msgs, disclosed_idxs)
 ```
 
 ### Proof Verification
@@ -500,7 +499,7 @@ The purpose of the above, is to reduce the information a Verifier may get, regar
 
 ### Core Blind Sign
 
-This operation computes a blind BBS signature, from a secret key (`SK`), a set of generators (points of G1), a supplied commitment with its proof of correctness (`commitment_with_proof`), a header (`header`) and a set of messages (`messages`). The operation also accepts a random scalar (`signer_blind`) and the identifier of the BBS Interface, making use of this core operation.
+This operation computes a blind BBS signature, from a secret key (`SK`), a set of generators (points of G1), a supplied commitment with its proof of correctness (`commitment_with_proof`), a header (`header`) and a set of messages (`messages`). The operation also accepts a random scalar (`signer_blind`) and the identifier of the BBS Interface, calling this core operation.
 
 ```
 blind_signature = CoreBlindSign(SK,
@@ -709,23 +708,21 @@ Outputs:
 Procedure:
 
 1.  if commitment_with_proof is the empty string (""), return
-                                                    (Identity_G1, (), 0)
-2.  if commitment_with_proof is the (Identity_G1, ()) set, return
-                                                    (Identity_G1, (), 0)
+                                                    (Identity_G1, 0)
 
-3.  com_res = octets_to_commitment_with_proof(commitment_with_proof)
-4.  if com_res is INVALID, return INVALID
+2.  com_res = octets_to_commitment_with_proof(commitment_with_proof)
+3.  if com_res is INVALID, return INVALID
 
-5.  (commit, commit_proof) = com_res
-6.  M = length(commit_proof[1]) + 1
+4.  (commit, commit_proof) = com_res
+5.  M = length(commit_proof[1]) + 1
 
-7.  if length(generators) < M + 1, return INVALID
-8.  blind_generators = generators[1..M + 1]
+6.  if length(generators) < M + 1, return INVALID
+7.  blind_generators = generators[1..M + 1]
 
-9.  validation_res = verify_commitment(COMMIT, commit_proof,
+8.  validation_res = verify_commitment(COMMIT, commit_proof,
                                                blind_generators, api_id)
-10. if validation_res is INVALID, return INVALID
-11. (commitment, M)
+9.  if validation_res is INVALID, return INVALID
+10. (commitment, M)
 ```
 
 ## Serialize

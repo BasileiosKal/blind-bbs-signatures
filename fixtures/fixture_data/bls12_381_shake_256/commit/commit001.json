@@ -1,8 +1,15 @@
 {
   "caseName": "valid no committed messages commitment with proof",
+  "mockRngParameters": {
+    "SEED": "3.141592653589793238462643383279",
+    "commit": {
+      "DST": "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDOM_SCALARS_DST_",
+      "count": 2
+    }
+  },
   "committedMessages": [],
-  "proverBlind": "6b5c611da045a00490b8bcd249d9173eb4163aef25a5290c3b446df3ab517519",
-  "commitmentWithProof": "996404592e71516ef2d19cfcc6667016c48e87f0c6991e45ba7f0e1b8bb7306fc33d7d59257185cdee95ff5eb056ea2316aa999a39d4cfc78db1a8e08a0ebbc069845955505dbc0c938c7bc81480436b3dd97413421ac099beef198f60d799312795707ff1192334275533e1903fa44c",
+  "proverBlind": "30bd5c9bd2b61c44dd169c92cf28bb607830c56073f10e7a800c857cb05ec249",
+  "commitmentWithProof": "95a6f21801b2010a9016c590cd6f0d59682e908a46cdc9856eea2c5000545626fc755c13ce93a71e371b0ae05491326302a8e40b4fc1197d75c46d2114c711d9186e4af0498dab260ae56f81dbc59f7b2a9f4883479ce40e765a32b6481766ed5aeeddecd2decd277460a5e129a22934",
   "result": {
     "valid": true
   }

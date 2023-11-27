@@ -1,11 +1,7 @@
 {
-  "caseName": "valid no prover committed messages, multiple signer messages signature",
+  "caseName": "valid no commitment signature",
   "mockRngParameters": {
     "SEED": "3.141592653589793238462643383279",
-    "commit": {
-      "DST": "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDOM_SCALARS_DST_",
-      "count": 3
-    },
     "signature": {
       "DST": "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_RANDOM_SCALARS_DST_",
       "count": 1
@@ -15,7 +11,7 @@
     "secretKey": "2eee0f60a8a3a8bec0ee942bfd46cbdae9a0738ee68f5a64e7238311cf09a079",
     "publicKey": "92d37d1d6cd38fea3a873953333eab23a4c0377e3e049974eb62bd45949cdeb18fb0490edcd4429adff56e65cbce42cf188b31bddbd619e419b99c2c41b38179eb001963bc3decaae0d9f702c7a8c004f207f46c734a5eae2e8e82833f3e7ea5"
   },
-  "commitmentWithProof": "8cdb7fb0750140d7d6a21525bef3e6923d905f3eb8556936d5d67b1aec65e5ca3a8d2a6841c4d45e22f597cb5567d85c4dbdd199b8975a6313c86328c5c0ad714b970ec0e5ed92abfad2c6cb8857a0f96164f648c04118c9f9b710549f6f6a18141c1691c46ce77d6cf660e7b423d42d629608ab8a2e0169b15019f0d477e7a843510105afdc5212f9d7fe88c62bfcc9",
+  "commitmentWithProof": null,
   "header": "11223344556677889900aabbccddeeff",
   "messages": [
     "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02",
@@ -29,12 +25,10 @@
     "96012096",
     ""
   ],
-  "committedMessages": [
-    ""
-  ],
-  "proverBlind": "643a0c0bc86a50e0d8c00bfe6c8debd85373597e1aef6cc912838bf7dc376e48",
-  "signerBlind": "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0a1e3c7f",
-  "signature": "996053fd888a5f9f28841f408b05eaa4e3838a92e26dea50583b1cfa4ab8c2bb2ce54f18394c90314f0bebc396f544c36ba50497aa531fcbf2245478ae65f654dda1699d675d0e0102bacc6f162e3558",
+  "committedMessages": null,
+  "proverBlind": null,
+  "signerBlind": null,
+  "signature": "8886984283bc433d56ac0f29bab40fb2273d0e7e42f5891c80c357473b504e2aae77658efbb0035cbf32771b7fe8dbbc3509d8e6d2a2a9917304e5a0650e9a6583edb53f82263222a92b41a531784d6e",
   "result": {
     "valid": true
   }
