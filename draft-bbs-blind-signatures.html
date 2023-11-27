@@ -1041,7 +1041,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="workgroup">none</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2023-11-09" class="published">9 November 2023</time>
+<time datetime="2023-11-27" class="published">27 November 2023</time>
     </dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
@@ -1153,10 +1153,10 @@ svg :is([fill="white"], [fill^="#fff"]) {
                 <p id="section-toc.1-1.6.2.3.1"><a href="#section-6.3" class="auto internal xref">6.3</a>.  <a href="#name-serialize" class="internal xref">Serialize</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3.2.1">
-                    <p id="section-toc.1-1.6.2.3.2.1.1"><a href="#section-6.3.1" class="auto internal xref">6.3.1</a>.  <a href="#name-commitment-to-octets" class="internal xref">Commitment to Octets</a></p>
+                    <p id="section-toc.1-1.6.2.3.2.1.1"><a href="#section-6.3.1" class="auto internal xref">6.3.1</a>.  <a href="#name-commitment-with-proof-to-oc" class="internal xref">Commitment with Proof to Octets</a></p>
 </li>
                   <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3.2.2">
-                    <p id="section-toc.1-1.6.2.3.2.2.1"><a href="#section-6.3.2" class="auto internal xref">6.3.2</a>.  <a href="#name-octet-to-commitment" class="internal xref">Octet to Commitment</a></p>
+                    <p id="section-toc.1-1.6.2.3.2.2.1"><a href="#section-6.3.2" class="auto internal xref">6.3.2</a>.  <a href="#name-octet-to-commitment-with-pr" class="internal xref">Octet to Commitment with Proof</a></p>
 </li>
                 </ul>
 </li>
@@ -1257,19 +1257,23 @@ svg :is([fill="white"], [fill^="#fff"]) {
 </dd>
           <dd class="break"></dd>
 <dt id="section-1.1-3.3">commitment</dt>
-          <dd style="margin-left: 1.5em" id="section-1.1-3.4">A Pedersen commitment (<span>[<a href="#P91" class="cite xref">P91</a>]</span>) constructed over a vector of messages, as described e.g., in <span>[<a href="#BG18" class="cite xref">BG18</a>]</span>.<a href="#section-1.1-3.4" class="pilcrow">¶</a>
+          <dd style="margin-left: 1.5em" id="section-1.1-3.4">A point of G1, representing a Pedersen commitment (<span>[<a href="#P91" class="cite xref">P91</a>]</span>) constructed over a vector of messages, as described e.g., in <span>[<a href="#BG18" class="cite xref">BG18</a>]</span>.<a href="#section-1.1-3.4" class="pilcrow">¶</a>
 </dd>
           <dd class="break"></dd>
 <dt id="section-1.1-3.5">committed_messages</dt>
           <dd style="margin-left: 1.5em" id="section-1.1-3.6">A list of messages committed by the Prover to a commitment.<a href="#section-1.1-3.6" class="pilcrow">¶</a>
 </dd>
           <dd class="break"></dd>
-<dt id="section-1.1-3.7">prover_blind</dt>
-          <dd style="margin-left: 1.5em" id="section-1.1-3.8">A random scalar used to blind (i.e., randomize) the commitment constructed by the prover.<a href="#section-1.1-3.8" class="pilcrow">¶</a>
+<dt id="section-1.1-3.7">commitment_proof</dt>
+          <dd style="margin-left: 1.5em" id="section-1.1-3.8">A zero knowledge proof of correctness of a commitment, consisting from a scalar value, a possibly empty set of scalars (of length equal to the number of committed_messages, see above) and another scalar, in that order.<a href="#section-1.1-3.8" class="pilcrow">¶</a>
 </dd>
           <dd class="break"></dd>
-<dt id="section-1.1-3.9">signer_blind</dt>
-          <dd style="margin-left: 1.5em" id="section-1.1-3.10">A random scalar used by the signer to optionally re-blind the received commitment.<a href="#section-1.1-3.10" class="pilcrow">¶</a>
+<dt id="section-1.1-3.9">prover_blind</dt>
+          <dd style="margin-left: 1.5em" id="section-1.1-3.10">A random scalar used to blind (i.e., randomize) the commitment constructed by the prover.<a href="#section-1.1-3.10" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.1-3.11">signer_blind</dt>
+          <dd style="margin-left: 1.5em" id="section-1.1-3.12">A random scalar used by the signer to optionally re-blind the received commitment.<a href="#section-1.1-3.12" class="pilcrow">¶</a>
 </dd>
         <dd class="break"></dd>
 </dl>
@@ -1342,9 +1346,10 @@ document, are to be interpreted as described in <span>[<a href="#RFC2119" class=
           <h4 id="name-commitment-computation">
 <a href="#section-4.1.1" class="section-number selfRef">4.1.1. </a><a href="#name-commitment-computation" class="section-name selfRef">Commitment Computation</a>
           </h4>
-<p id="section-4.1.1-1">This operation is used by the Prover to create <code>commitment</code> to a set of messages (<code>committed_messages</code>), that they intent to include to the signature. Note that this operation returns both the serialized commitment as well as the random scalar used to blind it (<code>prover_blind</code>).<a href="#section-4.1.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.1.1-1">This operation is used by the Prover to create <code>commitment</code> to a set of messages (<code>committed_messages</code>), that they intent to include to the signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (<code>commitment_with_proof</code>), as well as the random scalar used to blind the commitment (<code>prover_blind</code>).<a href="#section-4.1.1-1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.1.1-2">
-<pre>commitment = Commit(committed_messages, api_id)
+<pre>(commitment_with_proof, prover_blind) = Commit(committed_messages,
+                                                                 api_id)
 
 Inputs:
 
@@ -1356,8 +1361,9 @@ Inputs:
 
 Outputs:
 
-- blind_result, a vector comprising from an octet string and a random
-                scalar in that order.
+- (commitment_with_proof, prover_blind), a tuple comprising from an
+                                         octet string and a random
+                                         scalar in that order.
 
 Procedure:
 
@@ -1365,7 +1371,8 @@ Procedure:
 2.  generators = BBS.create_generators(M + 2, api_id)
 3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
 
-4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages, api_id)
+4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages,
+                                                                 api_id)
 5.  (prover_blind, s~, m~_1, ..., m~_M) = BBS.get_random_scalars(M + 2)
 
 6.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
@@ -1376,8 +1383,8 @@ Procedure:
 9.  s^ = s~ + prover_blind * challenge
 10. for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
 11. proof = (s^, (m^_1, ..., m^_M), challenge)
-12. commitment_with_proof_octs = commitment_to_octets(C, proof)
-13. return (commitment_with_proof_octs, prover_blind)
+12. commit_with_proof_octs = commitment_with_proof_to_octets(C, proof)
+13. return (commit_with_proof_octs, prover_blind)
 </pre><a href="#section-4.1.1-2" class="pilcrow">¶</a>
 </div>
 </section>
@@ -1387,35 +1394,38 @@ Procedure:
           <h4 id="name-commitment-verification">
 <a href="#section-4.1.2" class="section-number selfRef">4.1.2. </a><a href="#name-commitment-verification" class="section-name selfRef">Commitment Verification</a>
           </h4>
-<p id="section-4.1.2-1">This operation is used by the Signer to verify the correctness of a supplied <code>commitment</code>, over a list of points of G1 called the <code>blind_generators</code>.<a href="#section-4.1.2-1" class="pilcrow">¶</a></p>
+<p id="section-4.1.2-1">This operation is used by the Signer to verify the correctness of a <code>commitment_proof</code> for a supplied <code>commitment</code>, over a list of points of G1 called the <code>blind_generators</code>, used to generate that commitment.<a href="#section-4.1.2-1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.1.2-2">
-<pre>res = verify_commitment(commitment, blind_generators, api_id)
+<pre>result = verify_commitment(commitment, commitment_proof,
+                                               blind_generators, api_id)
 
 Inputs:
 
-- commitment (REQUIRED), a vector comprising from a point of G1 and
-                         another vector containing a scalars, a possibly
-                         empty set of scalars and another scalar, in
-                         that order.
+- commitment (REQUIRED), a commitment (see (#terminology)).
+- commitment_proof (REQUIRED), a commitment_proof (see (#terminology)).
 - blind_generators (REQUIRED), vector of pseudo-random points in G1.
 - api_id (OPTIONAL), octet string. If not supplied it defaults to the
                      empty octet string ("").
 
+Outputs:
+
+- result: either VALID or INVALID
+
 Deserialization:
 
-1. (Com, proof) = commitment_result
-2. (s^, commitments, cp) = proof
+1. (s^, commitments, cp) = commitment_proof
 
-3. M = length(commitments)
-4. (m^_1, ..., m^_M) = commitments
+2. M = length(commitments)
+3. (m^_1, ..., m^_M) = commitments
 
-5. if length(blind_generators) != M + 1, return INVALID
-6. (Q_2, J_1, ..., J_M) = blind_generators
+4. if length(blind_generators) != M + 1, return INVALID
+5. (Q_2, J_1, ..., J_M) = blind_generators
 
 Procedure:
 
-1. Cbar = Q_2 * s^ + J_1 * m^_1 + ... + J_M * m^_M + Com * (-cp)
-2. cv = calculate_blind_challenge(Com, Cbar, blind_generators, api_id)
+1. Cbar = Q_2 * s^ + J_1 * m^_1 + ... + J_M * m^_M + commitment * (-cp)
+2. cv = calculate_blind_challenge(commitment, Cbar, blind_generators,
+                                                                 api_id)
 3. if cv != cp, return INVALID
 4. return VALID
 </pre><a href="#section-4.1.2-2" class="pilcrow">¶</a>
@@ -1430,13 +1440,13 @@ Procedure:
 <a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-blind-bbs-signatures-interf" class="section-name selfRef">Blind BBS Signatures Interface</a>
         </h3>
 <p id="section-4.2-1">The following section defines a BBS Interface for blind BBS signatures. The identifier of the Interface is defined as <code>ciphersuite_id || BLIND_H2G_HM2S_</code>, where <code>ciphersuite_id</code> the unique identifier of the BBS ciphersuite used, as is defined in <a href="https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-03.html#name-ciphersuites">Section 6</a> of <span>[<a href="#I-D.irtf-cfrg-bbs-signatures" class="cite xref">I-D.irtf-cfrg-bbs-signatures</a>]</span>). Each BBS Interface MUST define operations to map the inputted messages to scalar values and to create the generators set, required by the core operations. The inputted messages to the defined Interface will be mapped to scalars using the <code>messages_to_scalars</code> operation defined in <a href="https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-messages-to-scalars">Section 4.1.2</a> of <span>[<a href="#I-D.irtf-cfrg-bbs-signatures" class="cite xref">I-D.irtf-cfrg-bbs-signatures</a>]</span>. The generators will be created using the <code>create_generators</code> operation defined in Section <a href="https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-generators-calculation">Section 4.1.1</a> of <span>[<a href="#I-D.irtf-cfrg-bbs-signatures" class="cite xref">I-D.irtf-cfrg-bbs-signatures</a>]</span>.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
-<p id="section-4.2-2">Other than the <code>CoreSign</code> operation (<a href="https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coresign">Section 3.6.1</a> of <span>[<a href="#I-D.irtf-cfrg-bbs-signatures" class="cite xref">I-D.irtf-cfrg-bbs-signatures</a>]</span>), all other procedures defined by the following Interface, use the core operations defined in <a href="https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-core-operations">Section 3.6</a> of <span>[<a href="#I-D.irtf-cfrg-bbs-signatures" class="cite xref">I-D.irtf-cfrg-bbs-signatures</a>]</span>.<a href="#section-4.2-2" class="pilcrow">¶</a></p>
+<p id="section-4.2-2">Other than the <code>BlindSign</code> operation defined in <a href="#blind-signature-generation" class="auto internal xref">Section 4.2.1</a>, which uses the <code>CoreBlindSign</code> procedure, defined in <a href="#core-blind-sign" class="auto internal xref">Section 4.3.1</a>, all other interface operations defined in this section use the core operations defined in <a href="https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-core-operations">Section 3.6</a> of <span>[<a href="#I-D.irtf-cfrg-bbs-signatures" class="cite xref">I-D.irtf-cfrg-bbs-signatures</a>]</span>.<a href="#section-4.2-2" class="pilcrow">¶</a></p>
 <div id="blind-signature-generation">
 <section id="section-4.2.1">
           <h4 id="name-blind-signature-generation">
 <a href="#section-4.2.1" class="section-number selfRef">4.2.1. </a><a href="#name-blind-signature-generation" class="section-name selfRef">Blind Signature Generation</a>
           </h4>
-<p id="section-4.2.1-1">This operation returns a BBS blind signature from a secret key (SK), over a header, a set of messages and optionally a commitment value, as outputted by the <code>Commit</code> operation (<a href="#commitment-computation" class="auto internal xref">Section 4.1.1</a>). The issuer can also further randomize the supplied commitment, by supplying a random scalar (<code>signer_blind</code>), that MUST be computed as,<a href="#section-4.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.2.1-1">This operation returns a BBS blind signature from a secret key (SK), over a header, a set of messages and optionally a commitment value (see <a href="#terminology" class="auto internal xref">Section 1.1</a>). If supplied, the commitment value must be accompanied by its proof of correctness (<code>commitment_with_proof</code>), as the first element outputted by the <code>Commit</code> operation (<a href="#commitment-computation" class="auto internal xref">Section 4.1.1</a>). The issuer can also further randomize the supplied commitment, by supplying a random scalar (<code>signer_blind</code>), that MUST be computed as,<a href="#section-4.2.1-1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.2.1-2">
 <pre>signer_blind = BBS.get_random_scalars(1)
 </pre><a href="#section-4.2.1-2" class="pilcrow">¶</a>
@@ -1444,8 +1454,8 @@ Procedure:
 <p id="section-4.2.1-3">If the <code>signer_blind</code> input is not supplied, it will default to the zero scalar (<code>0</code>).<a href="#section-4.2.1-3" class="pilcrow">¶</a></p>
 <p id="section-4.2.1-4">The <code>BlindSign</code> operation makes use of the <code>CoreBlindSign</code> procedure defined in <a href="#core-blind-sign" class="auto internal xref">Section 4.3.1</a>.<a href="#section-4.2.1-4" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.2.1-5">
-<pre>blind_signature = BlindSign(SK, PK, commitment, header, messages,
-                                                           signer_blind)
+<pre>blind_signature = BlindSign(SK, PK, commitment_with_proof, header,
+                                                 messages, signer_blind)
 
 Inputs:
 
@@ -1453,8 +1463,12 @@ Inputs:
                  operation.
 - PK (REQUIRED), an octet string of the form outputted by SkToPk
                  provided the above SK as input.
-- commitment (OPTIONAL), an octet string. If not supplied, it defaults
-                         to the empty string ("").
+- commitment_with_proof (OPTIONAL), an octet string, representing a
+                                    serialized commitment and
+                                    commitment_proof, as the first
+                                    element outputted by the Commit
+                                    operation. If not supplied, it
+                                    defaults to the empty string ("").
 - header (OPTIONAL), an octet string containing context and application
                      specific information. If not supplied, it defaults
                      to an empty string.
@@ -1468,6 +1482,7 @@ Parameters:
 - api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
           ciphersuite_id is defined by the ciphersuite and
           "BLIND_H2G_HM2S_"is an ASCII string comprised of 15 bytes.
+- (octet_point_length, octet_scalar_length), defined by the ciphersuite.
 
 Outputs:
 
@@ -1477,33 +1492,31 @@ Outputs:
 
 Deserialization:
 
-1. com_len_floor = point_octet_length + 2 * scalar_octet_length
-2. commits_len = 0
-3. if commitment != "", commits_len = length(commitment) - com_len_floor
-4. M = floor(commits_len / octet_scalar_length)
-5. L = length(messages)
+1. L = length(messages)
+
+// calculate the number of blind generators used by the commitment,
+// if any.
+2. M = length(commitment_with_proof)
+3. if M != 0, M = M - octet_point_length - octet_scalar_length
+4. M = M / octet_scalar_length
+5. if M &lt; 0, return INVALID
 
 Procedure:
 
-1. all_generators = BBS.create_generators(M + L + 2, api_id)
-2. generators = all_generators[0]
-3. blind_generators = all_generators[1]
-4. blind_generators.append(all_generators[2..M])
-5. generators.append(all_generators(M + 2..M + L + 2))
+1. generators = BBS.create_generators(M + L + 1, api_id)
 
-5. message_scalars = BBS.messages_to_scalars(messages, api_id)
+2. message_scalars = BBS.messages_to_scalars(messages, api_id)
 
-6. blind_sig = CoreBlindSign(SK,
+3. blind_sig = CoreBlindSign(SK,
                              PK,
-                             commitment,
+                             commitment_with_proof,
                              generators,
-                             blind_generators,
                              header,
                              messages,
                              signer_blind,
                              api_id)
-7. if blind_sig is INVALID, return INVALID
-8. return blind_sig
+4. if blind_sig is INVALID, return INVALID
+5. return blind_sig
 </pre><a href="#section-4.2.1-5" class="pilcrow">¶</a>
 </div>
 </section>
@@ -1549,17 +1562,25 @@ Outputs:
 
 - result: either VALID or INVALID
 
+Deserialization:
+
+1. L = length(messages)
+2. M = length(committed_messages)
+
 Procedure:
 
-1. message_scalars = (prover_blind + signer_blind)
-2. message_scalars.append(BBS.messages_to_scalars(
-                                       committed_messages, api_id))
-3. message_scalars.append(BBS.messages_to_scalars(messages, api_id))
+1. message_scalars = ()
+2. if prover_blind != 0, message_scalars.append(
+                                            prover_blind + signer_blind)
+3. message_scalars.append(BBS.messages_to_scalars(
+                                            committed_messages, api_id))
+4. message_scalars.append(BBS.messages_to_scalars(messages, api_id))
 
-4. generators = BBS.create_generators(L + M + 2, api_id)
-5. res = BBS.CoreVerify(PK, signature, generators, header, messages,
+5. generators = BBS.create_generators(length(message_scalars) + 1,
                                                                  api_id)
-6. return res
+6. res = BBS.CoreVerify(PK, signature, generators, header, messages,
+                                                                 api_id)
+7. return res
 </pre><a href="#section-4.2.2-3" class="pilcrow">¶</a>
 </div>
 </section>
@@ -1570,20 +1591,22 @@ Procedure:
 <a href="#section-4.2.3" class="section-number selfRef">4.2.3. </a><a href="#name-proof-generation" class="section-name selfRef">Proof Generation</a>
           </h4>
 <p id="section-4.2.3-1">This operation creates a BBS proof, which is a zero-knowledge, proof-of-knowledge, of a BBS signature, while optionally disclosing any subset of the signed messages. Note that in contrast to the <code>ProofGen</code> operation of <span>[<a href="#I-D.irtf-cfrg-bbs-signatures" class="cite xref">I-D.irtf-cfrg-bbs-signatures</a>]</span> (see <a href="https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-generation-proofgen">Section 3.5.3</a>), the <code>ProofGen</code> operation defined in this section accepts 2 different lists of messages and disclosed indexes, one for the messages known to the Signer (<code>messages</code>) and teh corresponding disclosed indexes (<code>disclosed_indexes</code>) and one for the messages committed by the Prover (<code>committed_messages</code>) and the corresponding disclosed indexes (<code>disclosed_commitment_indexes</code>).<a href="#section-4.2.3-1" class="pilcrow">¶</a></p>
-<p id="section-4.2.3-2">To Verify a proof however, the Verifier expects only one list of messages and one list of disclosed indexes (see <a href="#proof-verification" class="auto internal xref">Section 4.2.4</a>). This is done to not reveal to the proof Verifier which of the disclosed messages where committed by the Prover and which are known to the Verifier. See <a href="#present-and-verify-a-bbs-proof" class="auto internal xref">Section 5</a> on how the Prover should combine the disclosed messages and the disclosed indexes in order to present them to the Verifier.<a href="#section-4.2.3-2" class="pilcrow">¶</a></p>
+<p id="section-4.2.3-2">To Verify a proof however, the Verifier expects only one list of messages and one list of disclosed indexes (see <a href="#proof-verification" class="auto internal xref">Section 4.2.4</a>). This is done to avoid revealing which of the disclosed messages where committed by the Prover and which are known to the Verifier. To this end, the <code>BlindProofGen</code> operation defined in this section, uses the <code>get_disclosed_data</code> defined in <a href="#present-and-verify-a-bbs-proof" class="auto internal xref">Section 5</a> to combine and return the disclosed messages and the disclosed indexes that the prover should present to the Verifier.<a href="#section-4.2.3-2" class="pilcrow">¶</a></p>
 <p id="section-4.2.3-3">Lastly, the the operation also expects the <code>prover_blind</code> (as returned from the <code>Commit</code> operation defined in <a href="#commitment-computation" class="auto internal xref">Section 4.1.1</a>) and <code>signer_blind</code> (as inputted in the <code>BlindSign</code> operation defined in <a href="#blind-signature-generation" class="auto internal xref">Section 4.2.1</a>) values. If the BBS signature is generated using a commitment value, then the <code>prover_blind</code> returned by the <code>Commit</code> operation used to generate the commitment should be provided to the <code>ProofGen</code> operation (otherwise the resulting proof will be invalid).<a href="#section-4.2.3-3" class="pilcrow">¶</a></p>
-<p id="section-4.2.3-4">This operation makes use of the <code>CoreProofGen</code> operation as defined in <a href="https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coreproofgen">Section 3.6.3</a> of <span>[<a href="#I-D.irtf-cfrg-bbs-signatures" class="cite xref">I-D.irtf-cfrg-bbs-signatures</a>]</span>.<a href="#section-4.2.3-4" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-4.2.3-5">
-<pre>proof = BlindProofGen(PK,
-                      signature,
-                      header,
-                      ph,
-                      messages,
-                      committed_messages,
-                      disclosed_indexes,
-                      disclosed_commitment_indexes,
-                      prover_blind,
-                      signer_blind)
+<p id="section-4.2.3-4">Note that the <code>BlindProofGen</code> operation defined in this section returns both the generated proof as an octet string, together with a vector (<code>disclosed_data</code>) containing all the disclosed messages and their indexes, that would be later revealed to the proof Verifier.<a href="#section-4.2.3-4" class="pilcrow">¶</a></p>
+<p id="section-4.2.3-5">This operation makes use of the <code>CoreProofGen</code> operation as defined in <a href="https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coreproofgen">Section 3.6.3</a> of <span>[<a href="#I-D.irtf-cfrg-bbs-signatures" class="cite xref">I-D.irtf-cfrg-bbs-signatures</a>]</span>.<a href="#section-4.2.3-5" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.2.3-6">
+<pre>(proof, disclosed_msgs, disclosed_idxs)
+                           = BlindProofGen(PK,
+                                           signature,
+                                           header,
+                                           ph,
+                                           messages,
+                                           committed_messages,
+                                           disclosed_indexes,
+                                           disclosed_commitment_indexes,
+                                           prover_blind,
+                                           signer_blind)
 
 Inputs:
 
@@ -1625,7 +1648,10 @@ Parameters:
 
 Outputs:
 
-- proof, an octet string; or INVALID.
+- (proof, disclosed_msgs, disclosed_idxs) a tuple comprising from an
+                                          octet string, an array of
+                                          octet strings and an array of
+                                          non-zero integers; or INVALID.
 
 Deserialization:
 
@@ -1639,21 +1665,29 @@ Deserialization:
 
 Procedure:
 
-1. message_scalars = (prover_blind + signer_blind)
-2. message_scalars.append(BBS.messages_to_scalars(
+1.  message_scalars = ()
+2.  if prover_blind != 0, message_scalars.append(
+                                            prover_blind + signer_blind)
+
+4.  message_scalars.append(BBS.messages_to_scalars(
                                    committed_messages, api_id))
-3. message_scalars.append(BBS.messages_to_scalars(messages, api_id))
+5.  message_scalars.append(BBS.messages_to_scalars(messages, api_id))
 
-4. generators = BBS.create_generators(L + M + 2, api_id)
+6.  generators = BBS.create_generators(length(message_scalars) + 1,
+                                                                 api_id)
+7.  disclosed_data = get_disclosed_data(
+                                  messages,
+                                  committed_messages,
+                                  disclosed_indexes,
+                                  disclosed_commitment_indexes,
+                                  commitment_used)
+8.  if disclosed_data is INVALID, return INVALID.
+9.  (disclosed_msgs, disclosed_idxs) = disclosed_data
 
-5. indexes = ()
-7. for i in disclosed_commitment_indexes: indexes.append(i + 1)
-6. for j in disclosed_indexes: indexes.append(M + j + 1)
-
-8. proof = BBS.CoreProofGen(PK, signature, generators, header, ph,
-                                       message_scalars, indexes, api_id)
-9. return proof
-</pre><a href="#section-4.2.3-5" class="pilcrow">¶</a>
+10. proof = BBS.CoreProofGen(PK, signature, generators, header, ph,
+                                message_scalars, disclosed_idxs, api_id)
+11. return (proof, disclosed_msgs, disclosed_idxs)
+</pre><a href="#section-4.2.3-6" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
@@ -1684,13 +1718,12 @@ Procedure:
           <h4 id="name-core-blind-sign">
 <a href="#section-4.3.1" class="section-number selfRef">4.3.1. </a><a href="#name-core-blind-sign" class="section-name selfRef">Core Blind Sign</a>
           </h4>
-<p id="section-4.3.1-1">This operation computes a blind BBS signature, from a secret key (<code>SK</code>) over a supplied commitment (<code>commitment</code>), a header (<code>header</code>) and a set of messages (<code>messages</code>).<a href="#section-4.3.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.3.1-1">This operation computes a blind BBS signature, from a secret key (<code>SK</code>), a set of generators (points of G1), a supplied commitment with its proof of correctness (<code>commitment_with_proof</code>), a header (<code>header</code>) and a set of messages (<code>messages</code>). The operation also accepts a random scalar (<code>signer_blind</code>) and the identifier of the BBS Interface, calling this core operation.<a href="#section-4.3.1-1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.3.1-2">
 <pre>blind_signature = CoreBlindSign(SK,
                                 PK,
-                                commitment,
                                 generators,
-                                blind_generators,
+                                commitment_with_proof,
                                 header,
                                 messages,
                                 signer_blind,
@@ -1702,10 +1735,13 @@ Inputs:
                  operation.
 - PK (REQUIRED), an octet string of the form outputted by SkToPk
                  provided the above SK as input.
-- commitment (REQUIRED), an octet string of the form outputted by the
-                         Blind operation.
 - generators (REQUIRED), vector of pseudo-random points in G1.
-- blind_generators (REQUIRED), vector of pseudo-random points in G1.
+- commitment_with_proof (OPTIONAL), an octet string, representing a
+                                    serialized commitment and
+                                    commitment_proof, as the first
+                                    element outputted by the Commit
+                                    operation. If not supplied, it
+                                    defaults to the empty string ("").
 - header (OPTIONAL), an octet string containing context and application
                      specific information. If not supplied, it defaults
                      to an empty string.
@@ -1725,45 +1761,45 @@ Outputs:
 - blind_signature, a blind signature encoded as an octet string; or
                    INVALID.
 
+Definitions:
+
+1. signature_dst, an octet string representing the domain separation
+                  tag: api_id || "H2S_" where "H2S_" is an ASCII string
+                  comprised of 4 bytes.
 
 Deserialization:
 
 1. L = length(messages)
-2. (msg_1, ... ,msg_L) = messages
+2. (msg_1, ..., msg_L) = messages
 
-3. if length(generators) != L + 1, return INVALID
-4. (Q_1, H_1, ..., H_L) = generators
+3. commit_res = deserialize_and_validate_commit(commitment_with_proof,
+                                                generators,
+                                                api_id)
+4. if commit_res is INVALID, return INVALID
 
-5. if length(blind_generators) == 0, return INVALID
-6. M = length(blind_generators) - 1
-7. all_generators = (generators[0],
-                     blind_generators[0],
-                     blind_generators[1..M],
-                     generators[1..L])
+// if commitment_with_proof == "", then commit_res = (Identity_G1, 0).
+4. (commit, M) = commit_res
+
+5. Q_1 = generators[0]
+6. commitment_with_proof != "", Q_2 = generators[1]
+
+7. (H_1, ..., H_L) = generators[M + 1..M + L + 1]
 
 Procedure:
 
-// Verify the commitment's proof of correctness
-1.  commitment_res = commitment_validate_and_deserialize(
-                                                       commitment,
-                                                       blind_generators,
-                                                       api_id)
-2.  if commitment_res is INVALID, return INVALID
-// if commitment == "", then commitment_res = (Identity_G1, ())
-3.  (Com, _) = commitment_res
+1. domain = calculate_domain(PK, generators, header, api_id)
 
-// Blind Sign
-4.  domain = calculate_domain(PK, all_generators, header, api_id)
+2. e_octs = serialize((SK, domain, msg_1, ..., msg_L, signer_blind))
+3. e = hash_to_scalar(e_octs || commitment_with_proof, signature_dst)
 
-5.  e_octs = serialize((SK, domain, msg_1, ..., msg_L, signer_blind))
-6.  e = hash_to_scalar(e_octs || commitment, signature_dst)
+// if a commitment is not supplied, Q_2 = Identity_G1, meaning that
+// signer_blind will be ignored.
+4. commit = commit + Q_2 * signer_blind
+5. B = P1 + Q_1 * domain + H_1 * msg_1 + ... + H_L * msg_L + commit
+6. A = B * (1 / (SK + e))
+7. return signature_to_octets((A, e))
 
-7.  Com = Com + Q_2 * signer_blind
-8.  B = P1 + Q_1 * domain + H_1 * msg_1 + ... + H_L * msg_L + Com
-9.  A = B * (1 / (SK + e))
-10. return signature_to_octets((A, e))
-
-11. return signature
+8. return signature
 </pre><a href="#section-4.3.1-2" class="pilcrow">¶</a>
 </div>
 </section>
@@ -1820,8 +1856,8 @@ Procedure:
 
 // combine the disclosed indexes
 3. indexes = ()
-4. for i in disclosed_indexes: indexes.append(i + 1)
-5. for j in disclosed_commitment_indexes: indexes.append(L + j + 1)
+4. for i in disclosed_commitment_indexes: indexes.append(i + 1)
+5. for j in disclosed_indexes: indexes.append(M + j + 1)
 
 // combine the revealed messages
 6. disclosed_messages = (messages[i1], ..., messages[iL])
@@ -1829,7 +1865,7 @@ Procedure:
                                             ..., committed_messages[jM])
 8. disclosed_messages.append(disclosed_committed_messages)
 
-9. return(disclosed_messages, indexes)
+9. return (disclosed_messages, indexes)
 </pre><a href="#section-5-2" class="pilcrow">¶</a>
 </div>
 </section>
@@ -1883,36 +1919,47 @@ Procedure:
         <h3 id="name-commitment-validation-and-d">
 <a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-commitment-validation-and-d" class="section-name selfRef">Commitment Validation and Deserialization</a>
         </h3>
-<p id="section-6.2-1">The following is a helper operation used by the <code>CoreBlindSign</code> procedure (<a href="#core-blind-sign" class="auto internal xref">Section 4.3.1</a>) to de-serialize and then validate a supplied commitment. Note that the <code>commitment</code> input to <code>CoreBlindSign</code> is optional. If a <code>commitment</code> is not supplied, the following operation will return the <code>Identity_G1</code> as the commitment point, which will be ignored by all computations during <code>CoreBlindSign</code>.<a href="#section-6.2-1" class="pilcrow">¶</a></p>
+<p id="section-6.2-1">The following is a helper operation used by the <code>CoreBlindSign</code> procedure (<a href="#core-blind-sign" class="auto internal xref">Section 4.3.1</a>) to validate an optional commitment. The <code>commitment</code> input to <code>CoreBlindSign</code> is optional. If a <code>commitment</code> is not supplied, or if it is the <code>Identity_G1</code>, the following operation will return the <code>Identity_G1</code> as the commitment point, which will be ignored by all computations during <code>CoreBlindSign</code>.<a href="#section-6.2-1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-6.2-2">
-<pre>res = commitment_validate_and_deserialize(commitment,
-                                          blind_generators,
-                                          api_id)
+<pre>(commit, blind_gen_no) = deserialize_and_validate_commit(
+                                                  commitment_with_proof,
+                                                  generators,
+                                                  api_id)
 
 Inputs:
 
-- commitment (OPTIONAL), octet string. If it is not supplied it defaults
-                         to the empty octet string ("").
-- blind_generators (OPTIONAL), vector of points of G1. If it is not
-                               supplied it defaults to the empty set
-                               ("()").
+- commitment_with_proof (OPTIONAL), octet string. If it is not supplied
+                                    it defaults to the empty octet
+                                    string ("").
+- generators (OPTIONAL), vector of points of G1. If it is not supplied
+                         it defaults to the empty set ("()").
 - api_id (OPTIONAL), octet string. If not supplied it defaults to the
                      empty octet string ("").
 
 Outputs:
 
-- res, a vector comprising from a point of G1 and another vector
-       containing a scalars, a possibly empty set of scalars and another
-       scalar, in that order, or INVALID.
+- (commit, blind_gen_no), a tuple comprising from commitment, a
+                          commitment_proof (see (#terminology)), in that
+                          order; or INVALID.
 
 Procedure:
 
-1. if commitment is the empty string (""), return (Identity_G1, ())
-2. com_res = commitment_to_octets(commitment)
-3. if com_res is INVALID, return INVALID
-5. validation_res = verify_commitment(com_res, blind_generators, api_id)
-6. if validation_res is INVALID, return INVALID
-7. return com_res
+1.  if commitment_with_proof is the empty string (""), return
+                                                    (Identity_G1, 0)
+
+2.  com_res = octets_to_commitment_with_proof(commitment_with_proof)
+3.  if com_res is INVALID, return INVALID
+
+4.  (commit, commit_proof) = com_res
+5.  M = length(commit_proof[1]) + 1
+
+6.  if length(generators) &lt; M + 1, return INVALID
+7.  blind_generators = generators[1..M + 1]
+
+8.  validation_res = verify_commitment(COMMIT, commit_proof,
+                                               blind_generators, api_id)
+9.  if validation_res is INVALID, return INVALID
+10. (commitment, M)
 </pre><a href="#section-6.2-2" class="pilcrow">¶</a>
 </div>
 </section>
@@ -1922,13 +1969,13 @@ Procedure:
         <h3 id="name-serialize">
 <a href="#section-6.3" class="section-number selfRef">6.3. </a><a href="#name-serialize" class="section-name selfRef">Serialize</a>
         </h3>
-<div id="commitment-to-octets">
+<div id="commitment-with-proof-to-octets">
 <section id="section-6.3.1">
-          <h4 id="name-commitment-to-octets">
-<a href="#section-6.3.1" class="section-number selfRef">6.3.1. </a><a href="#name-commitment-to-octets" class="section-name selfRef">Commitment to Octets</a>
+          <h4 id="name-commitment-with-proof-to-oc">
+<a href="#section-6.3.1" class="section-number selfRef">6.3.1. </a><a href="#name-commitment-with-proof-to-oc" class="section-name selfRef">Commitment with Proof to Octets</a>
           </h4>
 <div class="alignLeft art-text artwork" id="section-6.3.1-1">
-<pre>commitment_octets = commitment_to_octets(commitment, proof)
+<pre>commitment_octets = commitment_with_proof_to_octets(commitment, proof) If the proof is INVALID,
 
 Inputs:
 
@@ -1951,13 +1998,13 @@ Procedure:
 </div>
 </section>
 </div>
-<div id="octet-to-commitment">
+<div id="octet-to-commitment-with-proof">
 <section id="section-6.3.2">
-          <h4 id="name-octet-to-commitment">
-<a href="#section-6.3.2" class="section-number selfRef">6.3.2. </a><a href="#name-octet-to-commitment" class="section-name selfRef">Octet to Commitment</a>
+          <h4 id="name-octet-to-commitment-with-pr">
+<a href="#section-6.3.2" class="section-number selfRef">6.3.2. </a><a href="#name-octet-to-commitment-with-pr" class="section-name selfRef">Octet to Commitment with Proof</a>
           </h4>
 <div class="alignLeft art-text artwork" id="section-6.3.2-1">
-<pre>commitment = octets_to_commitment(commitment_octs)
+<pre>commitment = octets_to_commitment_with_proof(commitment_octs)
 
 Inputs:
 
@@ -1976,25 +2023,28 @@ Outputs:
 
 Procedure:
 
-1.  C_octets = commitment_octs[0..(octet_point_length - 1)]
-2.  C = octets_to_point_g1(C_octets)
-3.  if C is INVALID, return INVALID
-4.  if C == Identity_G1, return INVALID
+1.  commit_len_floor = octet_point_length + 2 * octet_scalar_length
+2.  if length(commitment) &lt; commit_len_floor, return INVALID
 
-5.  j = 0
-6.  index = octet_point_length
-7.  while index &lt; length(commitment_octs):
-8.      end_index = index + octet_scalar_length - 1
-9.      s_j = OS2IP(proof_octets[index..end_index])
-10.     if s_j = 0 or if s_j &gt;= r, return INVALID
-11.     index += octet_scalar_length
-12.     j += 1
+3.  C_octets = commitment_octs[0..(octet_point_length - 1)]
+4.  C = octets_to_point_g1(C_octets)
+5.  if C is INVALID, return INVALID
+6.  if C == Identity_G1, return INVALID
 
-13. if index != length(commitment_octs), return INVALID
-14. if j &lt; 2, return INVALID
-15. msg_commitment = ()
-16. if j &gt;= 3, set msg_commitment = (s_2, ..., s_(j-1))
-17. return (C, (s_0, msg_commitments, s_j))
+7.  j = 0
+8.  index = octet_point_length
+9.  while index &lt; length(commitment_octs):
+10.     end_index = index + octet_scalar_length - 1
+11.     s_j = OS2IP(proof_octets[index..end_index])
+12.     if s_j = 0 or if s_j &gt;= r, return INVALID
+13.     index += octet_scalar_length
+14.     j += 1
+
+15. if index != length(commitment_octs), return INVALID
+16. if j &lt; 2, return INVALID
+17. msg_commitment = ()
+18. if j &gt;= 3, set msg_commitment = (s_2, ..., s_(j-1))
+19. return (C, (s_0, msg_commitments, s_j))
 </pre><a href="#section-6.3.2-1" class="pilcrow">¶</a>
 </div>
 </section>
