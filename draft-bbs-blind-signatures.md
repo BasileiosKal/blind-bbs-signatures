@@ -106,10 +106,13 @@ blind\_signature
 : The blind digital signature output.
 
 commitment
-: A Pedersen commitment ([@P91]) constructed over a vector of messages, as described e.g., in [@BG18].
+: A point of G1, representing a Pedersen commitment ([@P91]) constructed over a vector of messages, as described e.g., in [@BG18].
 
 committed\_messages
 : A list of messages committed by the Prover to a commitment.
+
+commitment\_proof
+: A zero knowledge proof of correctness of a commitment, consisting from a scalar value, a possibly empty set of scalars (of length equal to the number of committed\_messages, see above) and another scalar, in that order.
 
 prover\_blind
 : A random scalar used to blind (i.e., randomize) the commitment constructed by the prover.
@@ -151,7 +154,8 @@ This document makes use of various operations defined by the BBS Signature Schem
 This operation is used by the Prover to create `commitment` to a set of messages (`committed_messages`), that they intent to include to the signature. Note that this operation returns both the serialized commitment as well as the random scalar used to blind it (`prover_blind`).
 
 ```
-commitment = Commit(committed_messages, api_id)
+(commitment_with_proof, prover_blind) = Commit(committed_messages,
+                                                                 api_id)
 
 Inputs:
 
@@ -163,8 +167,9 @@ Inputs:
 
 Outputs:
 
-- blind_result, a vector comprising from an octet string and a random
-                scalar in that order.
+- (commitment_with_proof, prover_blind), a tuple comprising from an
+                                         octet string and a random
+                                         scalar in that order.
 
 Procedure:
 
@@ -172,7 +177,8 @@ Procedure:
 2.  generators = BBS.create_generators(M + 2, api_id)
 3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
 
-4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages, api_id)
+4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages,
+                                                                 api_id)
 5.  (prover_blind, s~, m~_1, ..., m~_M) = BBS.get_random_scalars(M + 2)
 
 6.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
@@ -183,8 +189,8 @@ Procedure:
 9.  s^ = s~ + prover_blind * challenge
 10. for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
 11. proof = (s^, (m^_1, ..., m^_M), challenge)
-12. commitment_with_proof_octs = commitment_to_octets(C, proof)
-13. return (commitment_with_proof_octs, prover_blind)
+12. commit_with_proof_octs = commitment_with_proof_to_octets(C, proof)
+13. return (commit_with_proof_octs, prover_blind)
 ```
 
 ### Commitment Verification
@@ -192,33 +198,36 @@ Procedure:
 This operation is used by the Signer to verify the correctness of a supplied `commitment`, over a list of points of G1 called the `blind_generators`.
 
 ```
-res = verify_commitment(commitment, blind_generators, api_id)
+result = verify_commitment(commitment, commitment_proof,
+                                               blind_generators, api_id)
 
 Inputs:
 
-- commitment (REQUIRED), a vector comprising from a point of G1 and
-                         another vector containing a scalars, a possibly
-                         empty set of scalars and another scalar, in
-                         that order.
+- commitment (REQUIRED), a commitment (see (#terminology)).
+- commitment_proof (REQUIRED), a commitment_proof (see (#terminology)).
 - blind_generators (REQUIRED), vector of pseudo-random points in G1.
 - api_id (OPTIONAL), octet string. If not supplied it defaults to the
                      empty octet string ("").
 
+Outputs:
+
+- result: either VALID or INVALID
+
 Deserialization:
 
-1. (Com, proof) = commitment_result
-2. (s^, commitments, cp) = proof
+1. (s^, commitments, cp) = commitment_proof
 
-3. M = length(commitments)
-4. (m^_1, ..., m^_M) = commitments
+2. M = length(commitments)
+3. (m^_1, ..., m^_M) = commitments
 
-5. if length(blind_generators) != M + 1, return INVALID
-6. (Q_2, J_1, ..., J_M) = blind_generators
+4. if length(blind_generators) != M + 1, return INVALID
+5. (Q_2, J_1, ..., J_M) = blind_generators
 
 Procedure:
 
-1. Cbar = Q_2 * s^ + J_1 * m^_1 + ... + J_M * m^_M + Com * (-cp)
-2. cv = calculate_blind_challenge(Com, Cbar, blind_generators, api_id)
+1. Cbar = Q_2 * s^ + J_1 * m^_1 + ... + J_M * m^_M + commitment * (-cp)
+2. cv = calculate_blind_challenge(commitment, Cbar, blind_generators,
+                                                                 api_id)
 3. if cv != cp, return INVALID
 4. return VALID
 ```
@@ -242,8 +251,8 @@ If the `signer_blind` input is not supplied, it will default to the zero scalar 
 The `BlindSign` operation makes use of the `CoreBlindSign` procedure defined in (#core-blind-sign).
 
 ```
-blind_signature = BlindSign(SK, PK, commitment, header, messages,
-                                                           signer_blind)
+blind_signature = BlindSign(SK, PK, commitment_with_proof, header,
+                                                 messages, signer_blind)
 
 Inputs:
 
@@ -251,8 +260,12 @@ Inputs:
                  operation.
 - PK (REQUIRED), an octet string of the form outputted by SkToPk
                  provided the above SK as input.
-- commitment (OPTIONAL), an octet string. If not supplied, it defaults
-                         to the empty string ("").
+- commitment_with_proof (OPTIONAL), an octet string, representing a
+                                    serialized commitment and
+                                    commitment_proof, as the first
+                                    element outputted by the Commit
+                                    operation. If not supplied, it
+                                    defaults to the empty string ("").
 - header (OPTIONAL), an octet string containing context and application
                      specific information. If not supplied, it defaults
                      to an empty string.
@@ -266,6 +279,7 @@ Parameters:
 - api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
           ciphersuite_id is defined by the ciphersuite and
           "BLIND_H2G_HM2S_"is an ASCII string comprised of 15 bytes.
+- (octet_point_length, octet_scalar_length), defined by the ciphersuite.
 
 Outputs:
 
@@ -275,33 +289,32 @@ Outputs:
 
 Deserialization:
 
-1. com_len_floor = point_octet_length + 2 * scalar_octet_length
-2. commits_len = 0
-3. if commitment != "", commits_len = length(commitment) - com_len_floor
-4. M = floor(commits_len / octet_scalar_length)
-5. L = length(messages)
+1. L = length(messages)
+
+// calculate the number of blind generators used by the commitment,
+// if any.
+2. M = length(commitment_with_proof)
+3. if commitment_with_proof != "", M = M - octet_point_length
+                                                  - octet_scalar_length
+4. M = M / octet_scalar_length
+5. if M < 0, return INVALID
 
 Procedure:
 
-1. all_generators = BBS.create_generators(M + L + 2, api_id)
-2. generators = all_generators[0]
-3. blind_generators = all_generators[1]
-4. blind_generators.append(all_generators[2..M])
-5. generators.append(all_generators(M + 2..M + L + 2))
+1. generators = BBS.create_generators(M + L + 1, api_id)
 
-5. message_scalars = BBS.messages_to_scalars(messages, api_id)
+2. message_scalars = BBS.messages_to_scalars(messages, api_id)
 
-6. blind_sig = CoreBlindSign(SK,
+3. blind_sig = CoreBlindSign(SK,
                              PK,
-                             commitment,
+                             commitment_with_proof,
                              generators,
-                             blind_generators,
                              header,
                              messages,
                              signer_blind,
                              api_id)
-7. if blind_sig is INVALID, return INVALID
-8. return blind_sig
+4. if blind_sig is INVALID, return INVALID
+5. return blind_sig
 ```
 
 ### Blind Signature Verification
@@ -344,17 +357,25 @@ Outputs:
 
 - result: either VALID or INVALID
 
+Deserialization:
+
+1. L = length(messages)
+2. M = length(committed_messages)
+
 Procedure:
 
-1. message_scalars = (prover_blind + signer_blind)
-2. message_scalars.append(BBS.messages_to_scalars(
-                                       committed_messages, api_id))
-3. message_scalars.append(BBS.messages_to_scalars(messages, api_id))
+1. message_scalars = ()
+2. if prover_blind != 0, message_scalars.append(
+                                            prover_blind + signer_blind)
+3. message_scalars.append(BBS.messages_to_scalars(
+                                            committed_messages, api_id))
+4. message_scalars.append(BBS.messages_to_scalars(messages, api_id))
 
-4. generators = BBS.create_generators(L + M + 2, api_id)
-5. res = BBS.CoreVerify(PK, signature, generators, header, messages,
+5. generators = BBS.create_generators(length(message_scalars) + 1,
                                                                  api_id)
-6. return res
+6. res = BBS.CoreVerify(PK, signature, generators, header, messages,
+                                                                 api_id)
+7. return res
 ```
 
 ### Proof Generation
@@ -365,19 +386,21 @@ To Verify a proof however, the Verifier expects only one list of messages and on
 
 Lastly, the the operation also expects the `prover_blind` (as returned from the `Commit` operation defined in (#commitment-computation)) and `signer_blind` (as inputted in the `BlindSign` operation defined in (#blind-signature-generation)) values. If the BBS signature is generated using a commitment value, then the `prover_blind` returned by the `Commit` operation used to generate the commitment should be provided to the `ProofGen` operation (otherwise the resulting proof will be invalid).
 
+Note that the `BlindProofGen` operation defined in this section returns both the generated proof as an octet string, together with a vector (`disclosed_data`) containing all the disclosed messages and their indexes, that would be later revealed to the proof Verifier.
+
 This operation makes use of the `CoreProofGen` operation as defined in [Section 3.6.3](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coreproofgen) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 ```
-proof = BlindProofGen(PK,
-                      signature,
-                      header,
-                      ph,
-                      messages,
-                      committed_messages,
-                      disclosed_indexes,
-                      disclosed_commitment_indexes,
-                      prover_blind,
-                      signer_blind)
+(proof, disclosed_data) = BlindProofGen(PK,
+                                        signature,
+                                        header,
+                                        ph,
+                                        messages,
+                                        committed_messages,
+                                        disclosed_indexes,
+                                        disclosed_commitment_indexes,
+                                        prover_blind,
+                                        signer_blind)
 
 Inputs:
 
@@ -419,7 +442,8 @@ Parameters:
 
 Outputs:
 
-- proof, an octet string; or INVALID.
+- (proof, disclosed_data) a tuple comprising from an octet string and a
+                          vector of octet strings; or INVALID.
 
 Deserialization:
 
@@ -433,20 +457,31 @@ Deserialization:
 
 Procedure:
 
-1. message_scalars = (prover_blind + signer_blind)
-2. message_scalars.append(BBS.messages_to_scalars(
+1.  message_scalars = ()
+2.  if prover_blind != 0, message_scalars.append(
+                                            prover_blind + signer_blind)
+
+4.  message_scalars.append(BBS.messages_to_scalars(
                                    committed_messages, api_id))
-3. message_scalars.append(BBS.messages_to_scalars(messages, api_id))
+5.  message_scalars.append(BBS.messages_to_scalars(messages, api_id))
 
-4. generators = BBS.create_generators(L + M + 2, api_id)
+6.  generators = BBS.create_generators(length(message_scalars) + 1,
+                                                                 api_id)
 
-5. indexes = ()
-7. for i in disclosed_commitment_indexes: indexes.append(i + 1)
-6. for j in disclosed_indexes: indexes.append(M + j + 1)
+7.  indexes = ()
+8.  for i in disclosed_commitment_indexes: indexes.append(i + 1)
+9.  for j in disclosed_indexes: indexes.append(M + j + 1)
 
-8. proof = BBS.CoreProofGen(PK, signature, generators, header, ph,
+10. proof = BBS.CoreProofGen(PK, signature, generators, header, ph,
                                        message_scalars, indexes, api_id)
-9. return proof
+
+11. disclosed_data = get_disclosed_data(
+                                  messages,
+                                  committed_messages,
+                                  disclosed_indexes,
+                                  disclosed_commitment_indexes,
+                                  commitment_used)
+12. return (proof, disclosed_data)
 ```
 
 ### Proof Verification
@@ -465,14 +500,13 @@ The purpose of the above, is to reduce the information a Verifier may get, regar
 
 ### Core Blind Sign
 
-This operation computes a blind BBS signature, from a secret key (`SK`) over a supplied commitment (`commitment`), a header (`header`) and a set of messages (`messages`).
+This operation computes a blind BBS signature, from a secret key (`SK`), a set of generators (points of G1), a supplied commitment with its proof of correctness (`commitment_with_proof`), a header (`header`) and a set of messages (`messages`). The operation also accepts a random scalar (`signer_blind`) and the identifier of the BBS Interface, making use of this core operation.
 
 ```
 blind_signature = CoreBlindSign(SK,
                                 PK,
-                                commitment,
                                 generators,
-                                blind_generators,
+                                commitment_with_proof,
                                 header,
                                 messages,
                                 signer_blind,
@@ -484,10 +518,13 @@ Inputs:
                  operation.
 - PK (REQUIRED), an octet string of the form outputted by SkToPk
                  provided the above SK as input.
-- commitment (REQUIRED), an octet string of the form outputted by the
-                         Blind operation.
 - generators (REQUIRED), vector of pseudo-random points in G1.
-- blind_generators (REQUIRED), vector of pseudo-random points in G1.
+- commitment_with_proof (OPTIONAL), an octet string, representing a
+                                    serialized commitment and
+                                    commitment_proof, as the first
+                                    element outputted by the Commit
+                                    operation. If not supplied, it
+                                    defaults to the empty string ("").
 - header (OPTIONAL), an octet string containing context and application
                      specific information. If not supplied, it defaults
                      to an empty string.
@@ -507,45 +544,45 @@ Outputs:
 - blind_signature, a blind signature encoded as an octet string; or
                    INVALID.
 
+Definitions:
+
+1. signature_dst, an octet string representing the domain separation
+                  tag: api_id || "H2S_" where "H2S_" is an ASCII string
+                  comprised of 4 bytes.
 
 Deserialization:
 
 1. L = length(messages)
-2. (msg_1, ... ,msg_L) = messages
+2. (msg_1, ..., msg_L) = messages
 
-3. if length(generators) != L + 1, return INVALID
-4. (Q_1, H_1, ..., H_L) = generators
+3. commit_res = deserialize_and_validate_commit(commitment_with_proof,
+                                                generators,
+                                                api_id)
+4. if commit_res is INVALID, return INVALID
 
-5. if length(blind_generators) == 0, return INVALID
-6. M = length(blind_generators) - 1
-7. all_generators = (generators[0],
-                     blind_generators[0],
-                     blind_generators[1..M],
-                     generators[1..L])
+// if commitment_with_proof == "", then commit_res = (Identity_G1, 0).
+4. (commit, M) = commit_res
+
+5. Q_1 = generators[0]
+6. commitment_with_proof != "", Q_2 = generators[1]
+
+7. (H_1, ..., H_L) = generators[M + 1..M + L + 1]
 
 Procedure:
 
-// Verify the commitment's proof of correctness
-1.  commitment_res = commitment_validate_and_deserialize(
-                                                       commitment,
-                                                       blind_generators,
-                                                       api_id)
-2.  if commitment_res is INVALID, return INVALID
-// if commitment == "", then commitment_res = (Identity_G1, ())
-3.  (Com, _) = commitment_res
+1. domain = calculate_domain(PK, generators, header, api_id)
 
-// Blind Sign
-4.  domain = calculate_domain(PK, all_generators, header, api_id)
+2. e_octs = serialize((SK, domain, msg_1, ..., msg_L, signer_blind))
+3. e = hash_to_scalar(e_octs || commitment_with_proof, signature_dst)
 
-5.  e_octs = serialize((SK, domain, msg_1, ..., msg_L, signer_blind))
-6.  e = hash_to_scalar(e_octs || commitment, signature_dst)
+// if a commitment is not supplied, Q_2 = Identity_G1, meaning that
+// signer_blind will be ignored.
+4. commit = commit + Q_2 * signer_blind
+5. B = P1 + Q_1 * domain + H_1 * msg_1 + ... + H_L * msg_L + commit
+6. A = B * (1 / (SK + e))
+7. return signature_to_octets((A, e))
 
-7.  Com = Com + Q_2 * signer_blind
-8.  B = P1 + Q_1 * domain + H_1 * msg_1 + ... + H_L * msg_L + Com
-9.  A = B * (1 / (SK + e))
-10. return signature_to_octets((A, e))
-
-11. return signature
+8. return signature
 ```
 
 
@@ -595,8 +632,8 @@ Procedure:
 
 // combine the disclosed indexes
 3. indexes = ()
-4. for i in disclosed_indexes: indexes.append(i + 1)
-5. for j in disclosed_commitment_indexes: indexes.append(L + j + 1)
+4. for i in disclosed_commitment_indexes: indexes.append(i + 1)
+5. for j in disclosed_indexes: indexes.append(M + j + 1)
 
 // combine the revealed messages
 6. disclosed_messages = (messages[i1], ..., messages[iL])
@@ -604,7 +641,7 @@ Procedure:
                                             ..., committed_messages[jM])
 8. disclosed_messages.append(disclosed_committed_messages)
 
-9. return(disclosed_messages, indexes)
+9. return (disclosed_messages, indexes)
 ```
 
 # Utilities
@@ -645,45 +682,58 @@ Procedure:
 
 ##  Commitment Validation and Deserialization
 
-The following is a helper operation used by the `CoreBlindSign` procedure ((#core-blind-sign)) to de-serialize and then validate a supplied commitment. Note that the `commitment` input to `CoreBlindSign` is optional. If a `commitment` is not supplied, the following operation will return the `Identity_G1` as the commitment point, which will be ignored by all computations during `CoreBlindSign`.
+The following is a helper operation used by the `CoreBlindSign` procedure ((#core-blind-sign)) to validate an optional commitment. The `commitment` input to `CoreBlindSign` is optional. If a `commitment` is not supplied, or if it is the `Identity_G1`, the following operation will return the `Identity_G1` as the commitment point, which will be ignored by all computations during `CoreBlindSign`.
 
 ```
-res = commitment_validate_and_deserialize(commitment,
-                                          blind_generators,
-                                          api_id)
+(commit, blind_gen_no) = deserialize_and_validate_commit(
+                                                  commitment_with_proof,
+                                                  generators,
+                                                  api_id)
 
 Inputs:
 
-- commitment (OPTIONAL), octet string. If it is not supplied it defaults
-                         to the empty octet string ("").
-- blind_generators (OPTIONAL), vector of points of G1. If it is not
-                               supplied it defaults to the empty set
-                               ("()").
+- commitment_with_proof (OPTIONAL), octet string. If it is not supplied
+                                    it defaults to the empty octet
+                                    string ("").
+- generators (OPTIONAL), vector of points of G1. If it is not supplied
+                         it defaults to the empty set ("()").
 - api_id (OPTIONAL), octet string. If not supplied it defaults to the
                      empty octet string ("").
 
 Outputs:
 
-- res, a vector comprising from a point of G1 and another vector
-       containing a scalars, a possibly empty set of scalars and another
-       scalar, in that order, or INVALID.
+- (commit, blind_gen_no), a tuple comprising from commitment, a
+                          commitment_proof (see (#terminology)), in that
+                          order; or INVALID.
 
 Procedure:
 
-1. if commitment is the empty string (""), return (Identity_G1, ())
-2. com_res = commitment_to_octets(commitment)
-3. if com_res is INVALID, return INVALID
-5. validation_res = verify_commitment(com_res, blind_generators, api_id)
-6. if validation_res is INVALID, return INVALID
-7. return com_res
+1.  if commitment_with_proof is the empty string (""), return
+                                                    (Identity_G1, (), 0)
+2.  if commitment_with_proof is the (Identity_G1, ()) set, return
+                                                    (Identity_G1, (), 0)
+
+3.  com_res = octets_to_commitment_with_proof(commitment_with_proof)
+4.  if com_res is INVALID, return INVALID
+
+5.  (commit, commit_proof) = com_res
+6.  M = length(commit_proof[1]) + 1
+
+7.  if length(generators) < M + 1, return INVALID
+8.  blind_generators = generators[1..M + 1]
+
+9.  validation_res = verify_commitment(COMMIT, commit_proof,
+                                               blind_generators, api_id)
+10. if validation_res is INVALID, return INVALID
+11. (commitment, M)
 ```
 
 ## Serialize
 
-### Commitment to Octets
+### Commitment with Proof to Octets
 
 ```
-commitment_octets = commitment_to_octets(commitment, proof)
+commitment_octets = commitment_with_proof_to_octets(commitment, proof) If the proof is INVALID,
 
 Inputs:
 
@@ -704,10 +754,10 @@ Procedure:
 5. return commitment_octs || proof_octs
 ```
 
-### Octet to Commitment
+### Octet to Commitment with Proof
 
 ```
-commitment = octets_to_commitment(commitment_octs)
+commitment = octets_to_commitment_with_proof(commitment_octs)
 
 Inputs:
 
@@ -726,25 +776,28 @@ Outputs:
 
 Procedure:
 
-1.  C_octets = commitment_octs[0..(octet_point_length - 1)]
-2.  C = octets_to_point_g1(C_octets)
-3.  if C is INVALID, return INVALID
-4.  if C == Identity_G1, return INVALID
+1.  commit_len_floor = octet_point_length + 2 * octet_scalar_length
+2.  if length(commitment) < commit_len_floor, return INVALID
 
-5.  j = 0
-6.  index = octet_point_length
-7.  while index < length(commitment_octs):
-8.      end_index = index + octet_scalar_length - 1
-9.      s_j = OS2IP(proof_octets[index..end_index])
-10.     if s_j = 0 or if s_j >= r, return INVALID
-11.     index += octet_scalar_length
-12.     j += 1
+3.  C_octets = commitment_octs[0..(octet_point_length - 1)]
+4.  C = octets_to_point_g1(C_octets)
+5.  if C is INVALID, return INVALID
+6.  if C == Identity_G1, return INVALID
 
-13. if index != length(commitment_octs), return INVALID
-14. if j < 2, return INVALID
-15. msg_commitment = ()
-16. if j >= 3, set msg_commitment = (s_2, ..., s_(j-1))
-17. return (C, (s_0, msg_commitments, s_j))
+7.  j = 0
+8.  index = octet_point_length
+9.  while index < length(commitment_octs):
+10.     end_index = index + octet_scalar_length - 1
+11.     s_j = OS2IP(proof_octets[index..end_index])
+12.     if s_j = 0 or if s_j >= r, return INVALID
+13.     index += octet_scalar_length
+14.     j += 1
+
+15. if index != length(commitment_octs), return INVALID
+16. if j < 2, return INVALID
+17. msg_commitment = ()
+18. if j >= 3, set msg_commitment = (s_2, ..., s_(j-1))
+19. return (C, (s_0, msg_commitments, s_j))
 ```
 
 # Security Considerations
