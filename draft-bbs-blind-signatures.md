@@ -803,7 +803,85 @@ Procedure:
 
 # Ciphersuites
 
-// TODO
+This document uses the `BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_` and `BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_` defined in [Section 6.2.1](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-bls12-381-shake-256) and [Section 6.2.2](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-bls12-381-sha-256) correspondingly, of [@!I-D.irtf-cfrg-bbs-signatures].
+
+# Test Vectors
+
+## BLS12-381-SHAKE-256 Test Vectors
+
+### Commitment
+
+#### No Committed Messages
+
+```
+Mocked RNG parameters:
+    dst = {{ $commitmentFixtures.bls12-381-shake-256.commit001.mockRngParameters.commit.DST }}
+    count =  {{ $commitmentFixtures.bls12-381-shake-256.commit001.mockRngParameters.commit.count }}
+
+committed_messages = {{ $commitmentFixtures.bls12-381-shake-256.commit001.committedMessages }}
+prover_blind = {{ $commitmentFixtures.bls12-381-shake-256.commit001.proverBlind }}
+commitment_with_proof = {{ $commitmentFixtures.bls12-381-shake-256.commit001.commitmentWithProof }}
+```
+
+#### Multiple Committed Messages
+
+
+```
+Mocked RNG parameters:
+    dst = {{ $commitmentFixtures.bls12-381-shake-256.commit002.mockRngParameters.commit.DST }}
+    count =  {{ $commitmentFixtures.bls12-381-shake-256.commit002.mockRngParameters.commit.count }}
+
+committed_message_1 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.committedMessages[0] }}
+committed_message_2 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.committedMessages[1] }}
+committed_message_3 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.committedMessages[2] }}
+committed_message_4 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.committedMessages[3] }}
+committed_message_5 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.committedMessages[4] }}
+
+prover_blind = {{ $commitmentFixtures.bls12-381-shake-256.commit002.proverBlind }}
+commitment_with_proof = {{ $commitmentFixtures.bls12-381-shake-256.commit002.commitmentWithProof }}
+```
+
+### KeyPair
+
+### Signature
+
+#### No Committed Messages, No Signer Messages
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature001.mockRngParameters.commit.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature001.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature001.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature001.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-shake-256.signature001.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-shake-256.signature001.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-shake-256.signature001.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-shake-256.signature001.header }}
+messages = {{ $signatureFixtures.bls12-381-shake-256.signature001.messages }}
+committed_messages = {{ $signatureFixtures.bls12-381-shake-256.signature001.committedMessages }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature001.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature001.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-shake-256.signature001.signature }}
+```
+
+
+### Proof
+
+## BLS12-381-SHA-256 Test Vectors
+
+### Commitment
+
+### KeyPair
+
+### Signature
+
+### Proof
 
 # IANA Considerations
 

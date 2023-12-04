@@ -21,3 +21,5 @@ draft-bbs-blind-signatures.xml
 package-lock.json
 report.xml
 !requirements.txt
+*.log
+*.lock

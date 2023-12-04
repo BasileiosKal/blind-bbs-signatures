@@ -1,0 +1,22 @@
+{
+  "name": "fixtures",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "Apache-2.0",
+  "private": false,
+  "scripts": {
+    "populate-fixtures": "ts-node index.ts"
+  },
+  "dependencies": {
+    "@types/node": "^20.10.3",
+    "typescript": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/lodash": "4.14.202",
+    "@types/lodash.get": "^4.4.9",
+    "lodash": "4.17.21",
+    "lodash.get": "^4.4.2",
+    "require-all": "^3.0.0",
+    "ts-node": "10.9.1"
+  }
+}
