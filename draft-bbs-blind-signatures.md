@@ -829,7 +829,7 @@ commitment_with_proof = {{ $commitmentFixtures.bls12-381-shake-256.commit001.com
 ```
 Mocked RNG parameters:
     dst = {{ $commitmentFixtures.bls12-381-shake-256.commit002.mockRngParameters.commit.DST }}
-    count =  {{ $commitmentFixtures.bls12-381-shake-256.commit002.mockRngParameters.commit.count }}
+    countsource ~./ =  {{ $commitmentFixtures.bls12-381-shake-256.commit002.mockRngParameters.commit.count }}
 
 committed_message_1 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.committedMessages[0] }}
 committed_message_2 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.committedMessages[1] }}
@@ -840,8 +840,6 @@ committed_message_5 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.commi
 prover_blind = {{ $commitmentFixtures.bls12-381-shake-256.commit002.proverBlind }}
 commitment_with_proof = {{ $commitmentFixtures.bls12-381-shake-256.commit002.commitmentWithProof }}
 ```
-
-### KeyPair
 
 ### Signature
 
@@ -861,7 +859,9 @@ PK = {{ $signatureFixtures.bls12-381-shake-256.signature001.signerKeyPair.public
 
 commitment_with_proof = {{ $signatureFixtures.bls12-381-shake-256.signature001.commitmentWithProof }}
 header = {{ $signatureFixtures.bls12-381-shake-256.signature001.header }}
+
 messages = {{ $signatureFixtures.bls12-381-shake-256.signature001.messages }}
+
 committed_messages = {{ $signatureFixtures.bls12-381-shake-256.signature001.committedMessages }}
 
 prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature001.proverBlind }}
@@ -870,30 +870,1245 @@ signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature001.signerBlin
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature001.signature }}
 ```
 
+#### Multiple Prover Committed Messages, No Signer Messages
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature002.mockRngParameters.commit.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature002.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature002.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature002.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-shake-256.signature002.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-shake-256.signature002.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-shake-256.signature002.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-shake-256.signature002.header }}
+
+messages = {{ $signatureFixtures.bls12-381-shake-256.signature002.messages }}
+
+committed_message_1 = {{ $signatureFixtures.bls12-381-shake-256.signature002.committedMessages[0] }}
+committed_message_2 = {{ $signatureFixtures.bls12-381-shake-256.signature002.committedMessages[1] }}
+committed_message_3 = {{ $signatureFixtures.bls12-381-shake-256.signature002.committedMessages[2] }}
+committed_message_4 = {{ $signatureFixtures.bls12-381-shake-256.signature002.committedMessages[3] }}
+committed_message_5 = {{ $signatureFixtures.bls12-381-shake-256.signature002.committedMessages[4] }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature002.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature002.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-shake-256.signature002.signature }}
+```
+
+#### No Prover Committed Messages, Multiple Signer Messages
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature003.mockRngParameters.commit.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature003.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature003.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature003.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-shake-256.signature003.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-shake-256.signature003.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-shake-256.signature003.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-shake-256.signature003.header }}
+
+messages_1 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[0] }}
+messages_2 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[1] }}
+messages_3 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[2] }}
+messages_4 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[3] }}
+messages_5 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[4] }}
+messages_6 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[5] }}
+messages_7 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[6] }}
+messages_8 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[7] }}
+messages_9 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[8] }}
+messages_10 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[9] }}
+
+committed_message = {{ $signatureFixtures.bls12-381-shake-256.signature003.committedMessages }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature003.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature003.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-shake-256.signature003.signature }}
+```
+
+#### Multiple Prover Committed and Signer Messages
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature004.mockRngParameters.commit.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature004.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature004.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature004.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-shake-256.signature004.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-shake-256.signature004.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-shake-256.signature004.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-shake-256.signature004.header }}
+
+messages_1 = {{ $signatureFixtures.bls12-381-shake-256.signature004.messages[0] }}
+messages_2 = {{ $signatureFixtures.bls12-381-shake-256.signature004.messages[1] }}
+messages_3 = {{ $signatureFixtures.bls12-381-shake-256.signature004.messages[2] }}
+messages_4 = {{ $signatureFixtures.bls12-381-shake-256.signature004.messages[3] }}
+messages_5 = {{ $signatureFixtures.bls12-381-shake-256.signature004.messages[4] }}
+messages_6 = {{ $signatureFixtures.bls12-381-shake-256.signature004.messages[5] }}
+messages_7 = {{ $signatureFixtures.bls12-381-shake-256.signature004.messages[6] }}
+messages_8 = {{ $signatureFixtures.bls12-381-shake-256.signature004.messages[7] }}
+messages_9 = {{ $signatureFixtures.bls12-381-shake-256.signature004.messages[8] }}
+messages_10 = {{ $signatureFixtures.bls12-381-shake-256.signature004.messages[9] }}
+
+committed_message_1 = {{ $signatureFixtures.bls12-381-shake-256.signature004.committedMessages[0] }}
+committed_message_2 = {{ $signatureFixtures.bls12-381-shake-256.signature004.committedMessages[1] }}
+committed_message_3 = {{ $signatureFixtures.bls12-381-shake-256.signature004.committedMessages[2] }}
+committed_message_4 = {{ $signatureFixtures.bls12-381-shake-256.signature004.committedMessages[3] }}
+committed_message_5 = {{ $signatureFixtures.bls12-381-shake-256.signature004.committedMessages[4] }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature004.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature004.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-shake-256.signature004.signature }}
+```
+
+#### Multiple Prover Committed and Signer Messages, No Signer Blind
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature005.mockRngParameters.commit.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature005.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature005.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature005.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-shake-256.signature005.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-shake-256.signature005.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-shake-256.signature005.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-shake-256.signature005.header }}
+
+messages_1 = {{ $signatureFixtures.bls12-381-shake-256.signature005.messages[0] }}
+messages_2 = {{ $signatureFixtures.bls12-381-shake-256.signature005.messages[1] }}
+messages_3 = {{ $signatureFixtures.bls12-381-shake-256.signature005.messages[2] }}
+messages_4 = {{ $signatureFixtures.bls12-381-shake-256.signature005.messages[3] }}
+messages_5 = {{ $signatureFixtures.bls12-381-shake-256.signature005.messages[4] }}
+messages_6 = {{ $signatureFixtures.bls12-381-shake-256.signature005.messages[5] }}
+messages_7 = {{ $signatureFixtures.bls12-381-shake-256.signature005.messages[6] }}
+messages_8 = {{ $signatureFixtures.bls12-381-shake-256.signature005.messages[7] }}
+messages_9 = {{ $signatureFixtures.bls12-381-shake-256.signature005.messages[8] }}
+messages_10 = {{ $signatureFixtures.bls12-381-shake-256.signature005.messages[9] }}
+
+committed_message_1 = {{ $signatureFixtures.bls12-381-shake-256.signature005.committedMessages[0] }}
+committed_message_2 = {{ $signatureFixtures.bls12-381-shake-256.signature005.committedMessages[1] }}
+committed_message_3 = {{ $signatureFixtures.bls12-381-shake-256.signature005.committedMessages[2] }}
+committed_message_4 = {{ $signatureFixtures.bls12-381-shake-256.signature005.committedMessages[3] }}
+committed_message_5 = {{ $signatureFixtures.bls12-381-shake-256.signature005.committedMessages[4] }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature005.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature005.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-shake-256.signature005.signature }}
+```
+
+#### No Commitment Signature
+
+```
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-shake-256.signature006.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-shake-256.signature006.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-shake-256.signature006.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-shake-256.signature006.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-shake-256.signature006.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-shake-256.signature006.header }}
+
+messages_1 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[0] }}
+messages_2 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[1] }}
+messages_3 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[2] }}
+messages_4 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[3] }}
+messages_5 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[4] }}
+messages_6 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[5] }}
+messages_7 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[6] }}
+messages_8 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[7] }}
+messages_9 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[8] }}
+messages_10 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[9] }}
+
+committed_message = {{ $signatureFixtures.bls12-381-shake-256.signature006.committedMessages }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature006.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature006.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-shake-256.signature006.signature }}
+```
 
 ### Proof
+
+#### All Prover Committed Messages and Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof001.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof001.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof001.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof001.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof001.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof001.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-shake-256.proof001.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-shake-256.proof001.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-shake-256.proof001.signature }}
+
+header = {{ $proofFixtures.bls12-381-shake-256.proof001.header }}
+ph = {{ $proofFixtures.bls12-381-shake-256.proof001.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-shake-256.proof001.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof001.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof001.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof001.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof001.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-shake-256.proof001.proof }}
+```
+
+#### Half Prover Committed Messages and All Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof002.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof002.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof002.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof002.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof002.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof002.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-shake-256.proof002.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-shake-256.proof002.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-shake-256.proof002.signature }}
+
+header = {{ $proofFixtures.bls12-381-shake-256.proof002.header }}
+ph = {{ $proofFixtures.bls12-381-shake-256.proof002.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-shake-256.proof002.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof002.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof002.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof002.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof002.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-shake-256.proof002.proof }}
+```
+
+#### All Prover Committed Messages and Half Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof003.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof003.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof003.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof003.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof003.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof003.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-shake-256.proof003.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-shake-256.proof003.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-shake-256.proof003.signature }}
+
+header = {{ $proofFixtures.bls12-381-shake-256.proof003.header }}
+ph = {{ $proofFixtures.bls12-381-shake-256.proof003.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-shake-256.proof003.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof003.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof003.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof003.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof003.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-shake-256.proof003.proof }}
+```
+
+#### Half Prover Committed Messages and Half Signer Messages
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof004.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof004.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof004.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof004.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof004.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof004.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-shake-256.proof004.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-shake-256.proof004.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-shake-256.proof004.signature }}
+
+header = {{ $proofFixtures.bls12-381-shake-256.proof004.header }}
+ph = {{ $proofFixtures.bls12-381-shake-256.proof004.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-shake-256.proof004.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof004.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof004.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof004.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof004.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-shake-256.proof004.proof }}
+```
+
+#### No Prover Committed Messages and Half Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof005.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof005.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof005.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof005.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof005.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof005.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-shake-256.proof005.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-shake-256.proof005.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-shake-256.proof005.signature }}
+
+header = {{ $proofFixtures.bls12-381-shake-256.proof005.header }}
+ph = {{ $proofFixtures.bls12-381-shake-256.proof005.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-shake-256.proof005.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof005.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof005.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof005.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof005.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-shake-256.proof005.proof }}
+```
+
+#### Half Prover Committed Messages and No Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof006.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof006.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof006.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof006.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof006.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof006.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-shake-256.proof006.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-shake-256.proof006.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-shake-256.proof006.signature }}
+
+header = {{ $proofFixtures.bls12-381-shake-256.proof006.header }}
+ph = {{ $proofFixtures.bls12-381-shake-256.proof006.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-shake-256.proof006.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof006.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof006.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof006.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof006.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-shake-256.proof006.proof }}
+```
+
+#### No Prover Committed Messages and No Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof007.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof007.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof007.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof007.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof007.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof007.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-shake-256.proof007.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-shake-256.proof007.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-shake-256.proof007.signature }}
+
+header = {{ $proofFixtures.bls12-381-shake-256.proof007.header }}
+ph = {{ $proofFixtures.bls12-381-shake-256.proof007.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-shake-256.proof007.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof007.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof007.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof007.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof007.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-shake-256.proof007.proof }}
+```
+
+#### No Commitment and Half Signer Messages Disclosed
+
+```
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof008.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof008.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-shake-256.proof008.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-shake-256.proof008.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-shake-256.proof008.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-shake-256.proof008.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-shake-256.proof008.signature }}
+
+header = {{ $proofFixtures.bls12-381-shake-256.proof008.header }}
+ph = {{ $proofFixtures.bls12-381-shake-256.proof008.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-shake-256.proof008.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof008.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof008.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof008.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof008.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-shake-256.proof008.proof }}
+```
 
 ## BLS12-381-SHA-256 Test Vectors
 
 ### Commitment
 
-### KeyPair
+#### No Committed Messages
+
+```
+Mocked RNG parameters:
+    dst = {{ $commitmentFixtures.bls12-381-sha-256.commit001.mockRngParameters.commit.DST }}
+    count =  {{ $commitmentFixtures.bls12-381-sha-256.commit001.mockRngParameters.commit.count }}
+
+committed_messages = {{ $commitmentFixtures.bls12-381-sha-256.commit001.committedMessages }}
+prover_blind = {{ $commitmentFixtures.bls12-381-sha-256.commit001.proverBlind }}
+commitment_with_proof = {{ $commitmentFixtures.bls12-381-sha-256.commit001.commitmentWithProof }}
+```
+
+#### Multiple Committed Messages
+
+
+```
+Mocked RNG parameters:
+    dst = {{ $commitmentFixtures.bls12-381-sha-256.commit002.mockRngParameters.commit.DST }}
+    count =  {{ $commitmentFixtures.bls12-381-sha-256.commit002.mockRngParameters.commit.count }}
+
+committed_message_1 = {{ $commitmentFixtures.bls12-381-sha-256.commit002.committedMessages[0] }}
+committed_message_2 = {{ $commitmentFixtures.bls12-381-sha-256.commit002.committedMessages[1] }}
+committed_message_3 = {{ $commitmentFixtures.bls12-381-sha-256.commit002.committedMessages[2] }}
+committed_message_4 = {{ $commitmentFixtures.bls12-381-sha-256.commit002.committedMessages[3] }}
+committed_message_5 = {{ $commitmentFixtures.bls12-381-sha-256.commit002.committedMessages[4] }}
+
+prover_blind = {{ $commitmentFixtures.bls12-381-sha-256.commit002.proverBlind }}
+commitment_with_proof = {{ $commitmentFixtures.bls12-381-sha-256.commit002.commitmentWithProof }}
+```
 
 ### Signature
 
+#### No Committed Messages, No Signer Messages
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature001.mockRngParameters.commit.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature001.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature001.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature001.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-sha-256.signature001.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-sha-256.signature001.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-sha-256.signature001.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-sha-256.signature001.header }}
+
+messages = {{ $signatureFixtures.bls12-381-sha-256.signature001.messages }}
+
+committed_messages = {{ $signatureFixtures.bls12-381-sha-256.signature001.committedMessages }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature001.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature001.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-sha-256.signature001.signature }}
+```
+
+#### Multiple Prover Committed Messages, No Signer Messages
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature002.mockRngParameters.commit.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature002.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature002.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature002.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-sha-256.signature002.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-sha-256.signature002.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-sha-256.signature002.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-sha-256.signature002.header }}
+
+messages = {{ $signatureFixtures.bls12-381-sha-256.signature002.messages }}
+
+committed_message_1 = {{ $signatureFixtures.bls12-381-sha-256.signature002.committedMessages[0] }}
+committed_message_2 = {{ $signatureFixtures.bls12-381-sha-256.signature002.committedMessages[1] }}
+committed_message_3 = {{ $signatureFixtures.bls12-381-sha-256.signature002.committedMessages[2] }}
+committed_message_4 = {{ $signatureFixtures.bls12-381-sha-256.signature002.committedMessages[3] }}
+committed_message_5 = {{ $signatureFixtures.bls12-381-sha-256.signature002.committedMessages[4] }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature002.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature002.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-sha-256.signature002.signature }}
+```
+
+#### No Prover Committed Messages, Multiple Signer Messages
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature003.mockRngParameters.commit.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature003.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature003.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature003.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-sha-256.signature003.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-sha-256.signature003.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-sha-256.signature003.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-sha-256.signature003.header }}
+
+messages_1 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[0] }}
+messages_2 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[1] }}
+messages_3 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[2] }}
+messages_4 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[3] }}
+messages_5 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[4] }}
+messages_6 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[5] }}
+messages_7 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[6] }}
+messages_8 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[7] }}
+messages_9 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[8] }}
+messages_10 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[9] }}
+
+committed_message = {{ $signatureFixtures.bls12-381-sha-256.signature003.committedMessages }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature003.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature003.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-sha-256.signature003.signature }}
+```
+
+#### Multiple Prover Committed and Signer Messages
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature004.mockRngParameters.commit.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature004.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature004.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature004.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-sha-256.signature004.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-sha-256.signature004.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-sha-256.signature004.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-sha-256.signature004.header }}
+
+messages_1 = {{ $signatureFixtures.bls12-381-sha-256.signature004.messages[0] }}
+messages_2 = {{ $signatureFixtures.bls12-381-sha-256.signature004.messages[1] }}
+messages_3 = {{ $signatureFixtures.bls12-381-sha-256.signature004.messages[2] }}
+messages_4 = {{ $signatureFixtures.bls12-381-sha-256.signature004.messages[3] }}
+messages_5 = {{ $signatureFixtures.bls12-381-sha-256.signature004.messages[4] }}
+messages_6 = {{ $signatureFixtures.bls12-381-sha-256.signature004.messages[5] }}
+messages_7 = {{ $signatureFixtures.bls12-381-sha-256.signature004.messages[6] }}
+messages_8 = {{ $signatureFixtures.bls12-381-sha-256.signature004.messages[7] }}
+messages_9 = {{ $signatureFixtures.bls12-381-sha-256.signature004.messages[8] }}
+messages_10 = {{ $signatureFixtures.bls12-381-sha-256.signature004.messages[9] }}
+
+committed_message_1 = {{ $signatureFixtures.bls12-381-sha-256.signature004.committedMessages[0] }}
+committed_message_2 = {{ $signatureFixtures.bls12-381-sha-256.signature004.committedMessages[1] }}
+committed_message_3 = {{ $signatureFixtures.bls12-381-sha-256.signature004.committedMessages[2] }}
+committed_message_4 = {{ $signatureFixtures.bls12-381-sha-256.signature004.committedMessages[3] }}
+committed_message_5 = {{ $signatureFixtures.bls12-381-sha-256.signature004.committedMessages[4] }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature004.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature004.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-sha-256.signature004.signature }}
+```
+
+#### Multiple Prover Committed and Signer Messages, No Signer Blind
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature005.mockRngParameters.commit.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature005.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature005.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature005.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-sha-256.signature005.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-sha-256.signature005.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-sha-256.signature005.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-sha-256.signature005.header }}
+
+messages_1 = {{ $signatureFixtures.bls12-381-sha-256.signature005.messages[0] }}
+messages_2 = {{ $signatureFixtures.bls12-381-sha-256.signature005.messages[1] }}
+messages_3 = {{ $signatureFixtures.bls12-381-sha-256.signature005.messages[2] }}
+messages_4 = {{ $signatureFixtures.bls12-381-sha-256.signature005.messages[3] }}
+messages_5 = {{ $signatureFixtures.bls12-381-sha-256.signature005.messages[4] }}
+messages_6 = {{ $signatureFixtures.bls12-381-sha-256.signature005.messages[5] }}
+messages_7 = {{ $signatureFixtures.bls12-381-sha-256.signature005.messages[6] }}
+messages_8 = {{ $signatureFixtures.bls12-381-sha-256.signature005.messages[7] }}
+messages_9 = {{ $signatureFixtures.bls12-381-sha-256.signature005.messages[8] }}
+messages_10 = {{ $signatureFixtures.bls12-381-sha-256.signature005.messages[9] }}
+
+committed_message_1 = {{ $signatureFixtures.bls12-381-sha-256.signature005.committedMessages[0] }}
+committed_message_2 = {{ $signatureFixtures.bls12-381-sha-256.signature005.committedMessages[1] }}
+committed_message_3 = {{ $signatureFixtures.bls12-381-sha-256.signature005.committedMessages[2] }}
+committed_message_4 = {{ $signatureFixtures.bls12-381-sha-256.signature005.committedMessages[3] }}
+committed_message_5 = {{ $signatureFixtures.bls12-381-sha-256.signature005.committedMessages[4] }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature005.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature005.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-sha-256.signature005.signature }}
+```
+
+#### No Commitment Signature
+
+```
+Mocked RNG parameters for the signature:
+    dst = {{ $signatureFixtures.bls12-381-sha-256.signature006.mockRngParameters.signature.DST }}
+    count =  {{ $signatureFixtures.bls12-381-sha-256.signature006.mockRngParameters.signature.count }}
+
+SK = {{ $signatureFixtures.bls12-381-sha-256.signature006.signerKeyPair.secretKey }}
+PK = {{ $signatureFixtures.bls12-381-sha-256.signature006.signerKeyPair.publicKey }}
+
+commitment_with_proof = {{ $signatureFixtures.bls12-381-sha-256.signature006.commitmentWithProof }}
+header = {{ $signatureFixtures.bls12-381-sha-256.signature006.header }}
+
+messages_1 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[0] }}
+messages_2 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[1] }}
+messages_3 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[2] }}
+messages_4 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[3] }}
+messages_5 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[4] }}
+messages_6 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[5] }}
+messages_7 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[6] }}
+messages_8 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[7] }}
+messages_9 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[8] }}
+messages_10 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[9] }}
+
+committed_message = {{ $signatureFixtures.bls12-381-sha-256.signature006.committedMessages }}
+
+prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature006.proverBlind }}
+signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature006.signerBlind }}
+
+signature = {{ $signatureFixtures.bls12-381-sha-256.signature006.signature }}
+```
+
 ### Proof
+
+#### All Prover Committed Messages and Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof001.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof001.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof001.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof001.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof001.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof001.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-sha-256.proof001.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-sha-256.proof001.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-sha-256.proof001.signature }}
+
+header = {{ $proofFixtures.bls12-381-sha-256.proof001.header }}
+ph = {{ $proofFixtures.bls12-381-sha-256.proof001.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-sha-256.proof001.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof001.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof001.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof001.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof001.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-sha-256.proof001.proof }}
+```
+
+#### Half Prover Committed Messages and All Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof002.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof002.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof002.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof002.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof002.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof002.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-sha-256.proof002.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-sha-256.proof002.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-sha-256.proof002.signature }}
+
+header = {{ $proofFixtures.bls12-381-sha-256.proof002.header }}
+ph = {{ $proofFixtures.bls12-381-sha-256.proof002.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-sha-256.proof002.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof002.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof002.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof002.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof002.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-sha-256.proof002.proof }}
+```
+
+#### All Prover Committed Messages and Half Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof003.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof003.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof003.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof003.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof003.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof003.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-sha-256.proof003.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-sha-256.proof003.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-sha-256.proof003.signature }}
+
+header = {{ $proofFixtures.bls12-381-sha-256.proof003.header }}
+ph = {{ $proofFixtures.bls12-381-sha-256.proof003.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-sha-256.proof003.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof003.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof003.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof003.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof003.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-sha-256.proof003.proof }}
+```
+
+#### Half Prover Committed Messages and Half Signer Messages
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof004.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof004.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof004.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof004.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof004.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof004.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-sha-256.proof004.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-sha-256.proof004.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-sha-256.proof004.signature }}
+
+header = {{ $proofFixtures.bls12-381-sha-256.proof004.header }}
+ph = {{ $proofFixtures.bls12-381-sha-256.proof004.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-sha-256.proof004.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof004.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof004.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof004.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof004.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-sha-256.proof004.proof }}
+```
+
+#### No Prover Committed Messages and Half Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof005.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof005.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof005.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof005.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof005.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof005.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-sha-256.proof005.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-sha-256.proof005.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-sha-256.proof005.signature }}
+
+header = {{ $proofFixtures.bls12-381-sha-256.proof005.header }}
+ph = {{ $proofFixtures.bls12-381-sha-256.proof005.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-sha-256.proof005.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof005.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof005.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof005.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof005.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-sha-256.proof005.proof }}
+```
+
+#### Half Prover Committed Messages and No Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof006.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof006.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof006.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof006.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof006.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof006.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-sha-256.proof006.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-sha-256.proof006.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-sha-256.proof006.signature }}
+
+header = {{ $proofFixtures.bls12-381-sha-256.proof006.header }}
+ph = {{ $proofFixtures.bls12-381-sha-256.proof006.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-sha-256.proof006.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof006.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof006.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof006.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof006.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-sha-256.proof006.proof }}
+```
+
+#### No Prover Committed Messages and No Signer Messages Disclosed
+
+```
+Mocked RNG parameters for commitment:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof007.mockRngParameters.commit.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof007.mockRngParameters.commit.count }}
+
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof007.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof007.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof007.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof007.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-sha-256.proof007.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-sha-256.proof007.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-sha-256.proof007.signature }}
+
+header = {{ $proofFixtures.bls12-381-sha-256.proof007.header }}
+ph = {{ $proofFixtures.bls12-381-sha-256.proof007.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-sha-256.proof007.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof007.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof007.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof007.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof007.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-sha-256.proof007.proof }}
+```
+
+#### No Commitment and Half Signer Messages Disclosed
+
+```
+Mocked RNG parameters for the signature:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof008.mockRngParameters.signature.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof008.mockRngParameters.signature.count }}
+
+Mocked RNG parameters for the proof:
+    dst = {{ $proofFixtures.bls12-381-sha-256.proof008.mockRngParameters.proof.DST }}
+    count =  {{ $proofFixtures.bls12-381-sha-256.proof008.mockRngParameters.proof.count }}
+
+message_1 = {{ $messages.messages[0] }}
+message_2 = {{ $messages.messages[1] }}
+message_3 = {{ $messages.messages[2] }}
+message_4 = {{ $messages.messages[3] }}
+message_5 = {{ $messages.messages[4] }}
+message_6 = {{ $messages.messages[5] }}
+message_7 = {{ $messages.messages[6] }}
+message_8 = {{ $messages.messages[7] }}
+message_9 = {{ $messages.messages[8] }}
+message_10 = {{ $messages.messages[9] }}
+
+committed_message_1 = {{ $messages.committedMessages[0] }}
+committed_message_2 = {{ $messages.committedMessages[1] }}
+committed_message_3 = {{ $messages.committedMessages[2] }}
+committed_message_4 = {{ $messages.committedMessages[3] }}
+committed_message_5 = {{ $messages.committedMessages[4] }}
+
+commitment_with_proof = {{ $proofFixtures.bls12-381-sha-256.proof008.commitmentWithProof }}
+
+PK = {{ $proofFixtures.bls12-381-sha-256.proof008.signerPublicKey }}
+signature = {{ $proofFixtures.bls12-381-sha-256.proof008.signature }}
+
+header = {{ $proofFixtures.bls12-381-sha-256.proof008.header }}
+ph = {{ $proofFixtures.bls12-381-sha-256.proof008.presentationHeader }}
+
+disclosed_indexes = {{ $proofFixtures.bls12-381-sha-256.proof008.revealedMessages }}
+disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof008.revealedCommittedMessages }}
+
+proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof008.proverBlind }}
+signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof008.signerBlind }}
+
+(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof008.disclosedData }}
+
+proof = {{ $proofFixtures.bls12-381-sha-256.proof008.proof }}
+```
+
 
 # IANA Considerations
 
 This document does not make any requests of IANA.
 
 {backmatter}
-
-# Appendix
-
-## Test Vectors
-
-// TODO
 
 <reference anchor="P91" target="https://ia.cr/2023/275">
   <front>

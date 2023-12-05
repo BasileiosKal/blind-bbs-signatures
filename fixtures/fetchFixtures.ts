@@ -1,5 +1,6 @@
 import * as path from "path";
 import { readdirSync  } from 'fs';
+import * as messages from "./fixture_data/messages.json";
 
 const FIXTURES_FILE = "./fixture_data"
 
@@ -129,4 +130,4 @@ export const commitmentFixtures = fetchPerSuiteFixtures<SignatureFixtureData>("/
 export const signatureFixtures = fetchPerSuiteFixtures<SignatureFixtureData>("/signature");
 export const proofFixtures = fetchPerSuiteFixtures<ProofFixtureData>("/proof");
 
-console.log(signatureFixtures);
+export { messages }
