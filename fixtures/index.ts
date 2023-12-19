@@ -77,7 +77,7 @@ function prepare_value(value: string, intent?: string): string {
     value = value.slice(0, max_len + 1) + "\n" + " ".repeat(intent_len + 1) + value.slice(max_len + 1);
   }
                                                                         
-  for (let i = 1; i < ~~(value.length/72); i++) {
+  for (let i = 1; i <= ~~(value.length/72); i++) {
     value = value.slice(0, 145 - intent_len + (i - 1)*73) + "\n" + " ".repeat(intent_len + 1) + value.slice(145 - intent_len + (i - 1)*73);
   }
 

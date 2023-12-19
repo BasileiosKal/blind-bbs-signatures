@@ -1,7 +1,7 @@
 %%%
 title = "Blind BBS Signatures"
 abbrev = "Blind BBS Signatures"
-ipr= "none"
+ipr= "trust200902"
 area = "Internet"
 workgroup = "none"
 submissiontype = "IETF"
@@ -70,9 +70,9 @@ Below is a basic diagram describing the main entities involved in the scheme.
                                                               |
                                                               |
                                                               |
-                                                       (5)* Send proof
+                                                      (5)* Send proof
                                                               +
-                                                        disclosed msgs
+                                                       disclosed msgs
                                                               |
                                                               |
                                                              \ /
@@ -730,7 +730,7 @@ Procedure:
 ### Commitment with Proof to Octets
 
 ```
-commitment_octets = commitment_with_proof_to_octets(commitment, proof) If the proof is INVALID,
+commitment_octets = commitment_with_proof_to_octets(commitment, proof)
 
 Inputs:
 
