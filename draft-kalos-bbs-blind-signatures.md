@@ -9,7 +9,7 @@ keyword = [""]
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-kalos-cfrg-bbs-blind-signatures-latest"
+value = "draft-kalos-bbs-blind-signatures-latest"
 status = "informational"
 
 [[author]]
