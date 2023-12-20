@@ -1,7 +1,7 @@
 %%%
 title = "Blind BBS Signatures"
 abbrev = "Blind BBS Signatures"
-ipr= "trust200902"
+ipr= "none"
 area = "Internet"
 workgroup = "none"
 submissiontype = "IETF"
@@ -9,7 +9,7 @@ keyword = [""]
 
 [seriesInfo]
 name = "Individual-Draft"
-value = "draft-bbs-blind-signatures-latest"
+value = "draft-kalos-bbs-blind-signatures-latest"
 status = "informational"
 
 [[author]]
