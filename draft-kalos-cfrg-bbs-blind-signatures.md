@@ -8,8 +8,8 @@ submissiontype = "IETF"
 keyword = [""]
 
 [seriesInfo]
-name = "Individual-Draft"
-value = "draft-kalos-bbs-blind-signatures-latest"
+name = "Internet-Draft"
+value = "draft-kalos-cfrg-bbs-blind-signatures-latest"
 status = "informational"
 
 [[author]]
