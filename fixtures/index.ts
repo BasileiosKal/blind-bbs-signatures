@@ -7,8 +7,7 @@ import get from "lodash.get";
 // example "m_1 = {{ $messages[1] }}" etc).
 const VARIABLE_REGEX = /(([^\S\n\t]*[a-zA-Z0-9_~]+\d*)\s=\s)?({{ \$)([a-zA-Z_|.|\-|\d|\[|\]]*)( }},?)$/gm
 
-const DRAFT_NAME = "../draft-bbs-blind-signatures.md";
-// const DRAFT_NAME = "./test.md";
+const DRAFT_NAME = "../draft-kalos-bbs-blind-signatures.md";
 
 const MAP_INTENT = 6;
 

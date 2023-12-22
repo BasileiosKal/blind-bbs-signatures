@@ -1,7 +1,7 @@
 %%%
 title = "Blind BBS Signatures"
 abbrev = "Blind BBS Signatures"
-ipr= "none"
+ipr= "trust200902"
 area = "Internet"
 workgroup = "none"
 submissiontype = "IETF"
@@ -48,7 +48,7 @@ This document defines an extension to the BBS Signature scheme that supports bli
 
 # Introduction
 
-The BBS Signatures scheme, as defined in [@!I-D.irtf-cfrg-bbs-signatures] can be extended to support blind signatures functionality. In a blind signatures setting, the Prover wants to get a BBS signature over a list of messages, without revealing those messages to the Signer. To do that, they construct a "hiding" commitment to those messages (i.e., a commitment which reveals no information about the committed values), together with a proof of correctness of that commitment. They will then send the (commitment, proof) pair to the Signer. Upon receiving that pair, the Signer will first have to verify the proof of correctness of the commitment. If the commitment is valid, they will then be able to use it in generating a BBS signature. The resulting signature will be a valid BBS signature over the messages committed by the Prover. The Signer can optionally include messages to the signature, in addition to the ones committed by the prover. Upon receiving the blind BBS signature, the Prover can verify it using the messages they committed to together with the messages the Signer included to the signature, and then use it to generate BBS proofs normally, as described in [@!I-D.irtf-cfrg-bbs-signatures].
+The BBS Signatures scheme, as defined in [@!I-D.irtf-cfrg-bbs-signatures] can be extended to support blind signatures functionality. In a blind signatures setting, the Prover wants to get a BBS signature over a list of messages, without revealing those messages to the Signer. To do that, they construct a "hiding" commitment to those messages (i.e., a commitment which reveals no information about the committed values), together with a proof of correctness of that commitment. They will then send the (commitment, proof) pair to the Signer. Upon receiving that pair, the Signer will first have to verify the proof of correctness of the commitment. If the commitment is valid, they will then be able to use it in generating a BBS signature. The result will be a valid BBS signature over the messages committed by the Prover. The Signer can optionally include messages to the signature, in addition to the ones committed by the prover. Upon receiving the blind BBS signature, the Prover can verify it using the messages they committed to, together with the messages the Signer included to the signature, and then use it to generate BBS proofs normally, as described in [@!I-D.irtf-cfrg-bbs-signatures].
 
 Below is a basic diagram describing the main entities involved in the scheme.
 !---
@@ -114,7 +114,7 @@ committed\_messages
 commitment\_proof
 : A zero knowledge proof of correctness of a commitment, consisting from a scalar value, a possibly empty set of scalars (of length equal to the number of committed\_messages, see above) and another scalar, in that order.
 
-prover\_blind
+secret\_prover\_blind
 : A random scalar used to blind (i.e., randomize) the commitment constructed by the prover.
 
 signer\_blind
@@ -151,11 +151,12 @@ This document makes use of various operations defined by the BBS Signature Schem
 
 ### Commitment Computation
 
-This operation is used by the Prover to create `commitment` to a set of messages (`committed_messages`), that they intent to include to the signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`prover_blind`).
+This operation is used by the Prover to create `commitment` to a set of messages (`committed_messages`), that they intent to include to the signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`secret_prover_blind`).
 
 ```
-(commitment_with_proof, prover_blind) = Commit(committed_messages,
-                                                                 api_id)
+(commitment_with_proof, secret_prover_blind) = Commit(
+                                                   committed_messages,
+                                                   api_id)
 
 Inputs:
 
@@ -167,9 +168,10 @@ Inputs:
 
 Outputs:
 
-- (commitment_with_proof, prover_blind), a tuple comprising from an
-                                         octet string and a random
-                                         scalar in that order.
+- (commitment_with_proof, secret_prover_blind), a tuple comprising from
+                                                an octet string and a
+                                                random scalar in that
+                                                order.
 
 Procedure:
 
@@ -179,18 +181,19 @@ Procedure:
 
 4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages,
                                                                  api_id)
-5.  (prover_blind, s~, m~_1, ..., m~_M) = BBS.get_random_scalars(M + 2)
+5.  (secret_prover_blind, s~, m~_1, ..., m~_M)
+                                         = BBS.get_random_scalars(M + 2)
 
-6.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
+6.  C = Q_2 * secret_prover_blind + J_1 * msg_1 + ... + J_M * msg_M
 7.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
 
 8.  challenge = calculate_blind_challenge(C, Cbar, generators, api_id)
 
-9.  s^ = s~ + prover_blind * challenge
+9.  s^ = s~ + secret_prover_blind * challenge
 10. for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
 11. proof = (s^, (m^_1, ..., m^_M), challenge)
 12. commit_with_proof_octs = commitment_with_proof_to_octets(C, proof)
-13. return (commit_with_proof_octs, prover_blind)
+13. return (commit_with_proof_octs, secret_prover_blind)
 ```
 
 ### Commitment Verification
@@ -318,13 +321,13 @@ Procedure:
 
 ### Blind Signature Verification
 
-This operation validates a blind BBS signature (`signature`), given the Signer's public key (`PK`), a header (`header`), a set of known to the Signer messages (`messages`) and if used, a set of committed messages (`committed_messages`), the `prover_blind` as returned by the `Commit` operation ((#commitment-computation)) and a blind factor supplied by the Signer (`signer_blind`).
+This operation validates a blind BBS signature (`signature`), given the Signer's public key (`PK`), a header (`header`), a set of known to the Signer messages (`messages`) and if used, a set of committed messages (`committed_messages`), the `secret_prover_blind` as returned by the `Commit` operation ((#commitment-computation)) and a blind factor supplied by the Signer (`signer_blind`).
 
 This operation makes use of the `CoreVerify` operation as defined in [Section 3.6.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coreverify) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 ```
 result = Verify(PK, signature, header, messages, committed_messages,
-                                             prover_blind, signer_blind)
+                                      secret_prover_blind, signer_blind)
 
 Inputs:
 
@@ -340,8 +343,8 @@ Inputs:
 - committed_messages (OPTIONAL), a vector of octet strings. If not
                                  supplied, it defaults to the empty
                                  array "()".
-- prover_blind (OPTIONAL), a scalar value. If not supplied it defaults
-                           to zero "0".
+- secret_prover_blind (OPTIONAL), a scalar value. If not supplied it
+                                  defaults to zero "0".
 - signer_blind (OPTIONAL), a scalar value. If not supplied it defaults
                            to zero "0".
 
@@ -364,8 +367,8 @@ Deserialization:
 Procedure:
 
 1. message_scalars = ()
-2. if prover_blind != 0, message_scalars.append(
-                                            prover_blind + signer_blind)
+2. if secret_prover_blind != 0, message_scalars.append(
+                                     secret_prover_blind + signer_blind)
 3. message_scalars.append(BBS.messages_to_scalars(
                                             committed_messages, api_id))
 4. message_scalars.append(BBS.messages_to_scalars(messages, api_id))
@@ -383,7 +386,7 @@ This operation creates a BBS proof, which is a zero-knowledge, proof-of-knowledg
 
 To Verify a proof however, the Verifier expects only one list of messages and one list of disclosed indexes (see (#proof-verification)). This is done to avoid revealing which of the disclosed messages where committed by the Prover and which are known to the Verifier. To this end, the `BlindProofGen` operation defined in this section, uses the `get_disclosed_data` defined in (#present-and-verify-a-bbs-proof) to combine and return the disclosed messages and the disclosed indexes that the prover should present to the Verifier.
 
-Lastly, the the operation also expects the `prover_blind` (as returned from the `Commit` operation defined in (#commitment-computation)) and `signer_blind` (as inputted in the `BlindSign` operation defined in (#blind-signature-generation)) values. If the BBS signature is generated using a commitment value, then the `prover_blind` returned by the `Commit` operation used to generate the commitment should be provided to the `ProofGen` operation (otherwise the resulting proof will be invalid).
+Lastly, the the operation also expects the `secret_prover_blind` (as returned from the `Commit` operation defined in (#commitment-computation)) and `signer_blind` (as inputted in the `BlindSign` operation defined in (#blind-signature-generation)) values. If the BBS signature is generated using a commitment value, then the `secret_prover_blind` returned by the `Commit` operation used to generate the commitment should be provided to the `ProofGen` operation (otherwise the resulting proof will be invalid).
 
 Note that the `BlindProofGen` operation defined in this section returns both the generated proof as an octet string, together with a vector (`disclosed_data`) containing all the disclosed messages and their indexes, that would be later revealed to the proof Verifier.
 
@@ -399,7 +402,7 @@ This operation makes use of the `CoreProofGen` operation as defined in [Section 
                                            committed_messages,
                                            disclosed_indexes,
                                            disclosed_commitment_indexes,
-                                           prover_blind,
+                                           secret_prover_blind,
                                            signer_blind)
 
 Inputs:
@@ -428,8 +431,8 @@ Inputs:
                                            messages. If not supplied, it
                                            defaults to the empty array
                                            "()".
-- prover_blind (OPTIONAL), a scalar value. If not supplied it defaults
-                           to zero "0".
+- secret_prover_blind (OPTIONAL), a scalar value. If not supplied it
+                                  defaults to zero "0".
 - signer_blind (OPTIONAL), a scalar value. If not supplied it defaults
                            to zero "0".
 
@@ -460,8 +463,8 @@ Deserialization:
 Procedure:
 
 1.  message_scalars = ()
-2.  if prover_blind != 0, message_scalars.append(
-                                            prover_blind + signer_blind)
+2.  if secret_prover_blind != 0, message_scalars.append(
+                                     secret_prover_blind + signer_blind)
 
 4.  message_scalars.append(BBS.messages_to_scalars(
                                    committed_messages, api_id))
@@ -819,7 +822,7 @@ Mocked RNG parameters:
     count =  {{ $commitmentFixtures.bls12-381-shake-256.commit001.mockRngParameters.commit.count }}
 
 committed_messages = {{ $commitmentFixtures.bls12-381-shake-256.commit001.committedMessages }}
-prover_blind = {{ $commitmentFixtures.bls12-381-shake-256.commit001.proverBlind }}
+secret_prover_blind = {{ $commitmentFixtures.bls12-381-shake-256.commit001.proverBlind }}
 commitment_with_proof = {{ $commitmentFixtures.bls12-381-shake-256.commit001.commitmentWithProof }}
 ```
 
@@ -837,7 +840,7 @@ committed_message_3 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.commi
 committed_message_4 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.committedMessages[3] }}
 committed_message_5 = {{ $commitmentFixtures.bls12-381-shake-256.commit002.committedMessages[4] }}
 
-prover_blind = {{ $commitmentFixtures.bls12-381-shake-256.commit002.proverBlind }}
+secret_prover_blind = {{ $commitmentFixtures.bls12-381-shake-256.commit002.proverBlind }}
 commitment_with_proof = {{ $commitmentFixtures.bls12-381-shake-256.commit002.commitmentWithProof }}
 ```
 
@@ -864,7 +867,7 @@ messages = {{ $signatureFixtures.bls12-381-shake-256.signature001.messages }}
 
 committed_messages = {{ $signatureFixtures.bls12-381-shake-256.signature001.committedMessages }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature001.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature001.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature001.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature001.signature }}
@@ -895,7 +898,7 @@ committed_message_3 = {{ $signatureFixtures.bls12-381-shake-256.signature002.com
 committed_message_4 = {{ $signatureFixtures.bls12-381-shake-256.signature002.committedMessages[3] }}
 committed_message_5 = {{ $signatureFixtures.bls12-381-shake-256.signature002.committedMessages[4] }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature002.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature002.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature002.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature002.signature }}
@@ -931,7 +934,7 @@ messages_10 = {{ $signatureFixtures.bls12-381-shake-256.signature003.messages[9]
 
 committed_message = {{ $signatureFixtures.bls12-381-shake-256.signature003.committedMessages }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature003.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature003.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature003.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature003.signature }}
@@ -971,7 +974,7 @@ committed_message_3 = {{ $signatureFixtures.bls12-381-shake-256.signature004.com
 committed_message_4 = {{ $signatureFixtures.bls12-381-shake-256.signature004.committedMessages[3] }}
 committed_message_5 = {{ $signatureFixtures.bls12-381-shake-256.signature004.committedMessages[4] }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature004.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature004.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature004.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature004.signature }}
@@ -1011,7 +1014,7 @@ committed_message_3 = {{ $signatureFixtures.bls12-381-shake-256.signature005.com
 committed_message_4 = {{ $signatureFixtures.bls12-381-shake-256.signature005.committedMessages[3] }}
 committed_message_5 = {{ $signatureFixtures.bls12-381-shake-256.signature005.committedMessages[4] }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature005.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature005.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature005.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature005.signature }}
@@ -1043,7 +1046,7 @@ messages_10 = {{ $signatureFixtures.bls12-381-shake-256.signature006.messages[9]
 
 committed_message = {{ $signatureFixtures.bls12-381-shake-256.signature006.committedMessages }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature006.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature006.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature006.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature006.signature }}
@@ -1467,7 +1470,7 @@ Mocked RNG parameters:
     count =  {{ $commitmentFixtures.bls12-381-sha-256.commit001.mockRngParameters.commit.count }}
 
 committed_messages = {{ $commitmentFixtures.bls12-381-sha-256.commit001.committedMessages }}
-prover_blind = {{ $commitmentFixtures.bls12-381-sha-256.commit001.proverBlind }}
+secret_prover_blind = {{ $commitmentFixtures.bls12-381-sha-256.commit001.proverBlind }}
 commitment_with_proof = {{ $commitmentFixtures.bls12-381-sha-256.commit001.commitmentWithProof }}
 ```
 
@@ -1485,7 +1488,7 @@ committed_message_3 = {{ $commitmentFixtures.bls12-381-sha-256.commit002.committ
 committed_message_4 = {{ $commitmentFixtures.bls12-381-sha-256.commit002.committedMessages[3] }}
 committed_message_5 = {{ $commitmentFixtures.bls12-381-sha-256.commit002.committedMessages[4] }}
 
-prover_blind = {{ $commitmentFixtures.bls12-381-sha-256.commit002.proverBlind }}
+secret_prover_blind = {{ $commitmentFixtures.bls12-381-sha-256.commit002.proverBlind }}
 commitment_with_proof = {{ $commitmentFixtures.bls12-381-sha-256.commit002.commitmentWithProof }}
 ```
 
@@ -1512,7 +1515,7 @@ messages = {{ $signatureFixtures.bls12-381-sha-256.signature001.messages }}
 
 committed_messages = {{ $signatureFixtures.bls12-381-sha-256.signature001.committedMessages }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature001.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature001.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature001.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature001.signature }}
@@ -1543,7 +1546,7 @@ committed_message_3 = {{ $signatureFixtures.bls12-381-sha-256.signature002.commi
 committed_message_4 = {{ $signatureFixtures.bls12-381-sha-256.signature002.committedMessages[3] }}
 committed_message_5 = {{ $signatureFixtures.bls12-381-sha-256.signature002.committedMessages[4] }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature002.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature002.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature002.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature002.signature }}
@@ -1579,7 +1582,7 @@ messages_10 = {{ $signatureFixtures.bls12-381-sha-256.signature003.messages[9] }
 
 committed_message = {{ $signatureFixtures.bls12-381-sha-256.signature003.committedMessages }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature003.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature003.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature003.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature003.signature }}
@@ -1619,7 +1622,7 @@ committed_message_3 = {{ $signatureFixtures.bls12-381-sha-256.signature004.commi
 committed_message_4 = {{ $signatureFixtures.bls12-381-sha-256.signature004.committedMessages[3] }}
 committed_message_5 = {{ $signatureFixtures.bls12-381-sha-256.signature004.committedMessages[4] }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature004.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature004.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature004.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature004.signature }}
@@ -1659,7 +1662,7 @@ committed_message_3 = {{ $signatureFixtures.bls12-381-sha-256.signature005.commi
 committed_message_4 = {{ $signatureFixtures.bls12-381-sha-256.signature005.committedMessages[3] }}
 committed_message_5 = {{ $signatureFixtures.bls12-381-sha-256.signature005.committedMessages[4] }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature005.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature005.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature005.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature005.signature }}
@@ -1691,7 +1694,7 @@ messages_10 = {{ $signatureFixtures.bls12-381-sha-256.signature006.messages[9] }
 
 committed_message = {{ $signatureFixtures.bls12-381-sha-256.signature006.committedMessages }}
 
-prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature006.proverBlind }}
+secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature006.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature006.signerBlind }}
 
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature006.signature }}
