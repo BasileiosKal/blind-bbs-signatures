@@ -3,21 +3,20 @@
 
 
 none                                                            V. Kalos
-                                                               T. Looker
-                                                                   MATTR
-                                                            A. Whitehead
-                                                                 Portage
-                                                         5 December 2023
+Internet-Draft                                                     MATTR
+Intended status: Informational                              G. Bernstein
+Expires: 14 July 2024                                  Grotto Networking
+                                                         11 January 2024
 
 
                           Blind BBS Signatures
-                   draft-bbs-blind-signatures-latest
+                draft-kalos-bbs-blind-signatures-latest
 
 Abstract
 
    This document defines an extension to the BBS Signature scheme that
    supports blind digital signatures, i.e., signatures over messages not
-   known to the Signer of that signature.
+   known to the Signer.
 
 Discussion Venues
 
@@ -25,6 +24,37 @@ Discussion Venues
 
    Source for this draft and an issue tracker can be found at
    https://github.com/BasileiosKal/blind-bbs-signatures.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 14 July 2024.
+
+Copyright Notice
+
+   Copyright (c) 2024 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
 
 Table of Contents
 
@@ -52,6 +82,9 @@ Table of Contents
        6.3.1.  Commitment with Proof to Octets
        6.3.2.  Octet to Commitment with Proof
    7.  Security Considerations
+     7.1.  Prover Blind Factor
+     7.2.  Key Binding
+     7.3.  Commitment Randomization
    8.  Ciphersuites
    9.  Test Vectors
      9.1.  BLS12-381-SHAKE-256 Test Vectors
@@ -63,32 +96,68 @@ Table of Contents
        9.2.2.  Signature
        9.2.3.  Proof
    10. IANA Considerations
-   11. References
-     11.1.  Normative References
-     11.2.  Informative References
+   11. Normative References
+   12. Informative References
    Authors' Addresses
 
 1.  Introduction
 
-   The BBS Signatures scheme, as defined in
-   [I-D.irtf-cfrg-bbs-signatures] can be extended to support blind
-   signatures functionality.  In a blind signatures setting, the Prover
-   wants to get a BBS signature over a list of messages, without
-   revealing those messages to the Signer.  To do that, they construct a
-   "hiding" commitment to those messages (i.e., a commitment which
-   reveals no information about the committed values), together with a
-   proof of correctness of that commitment.  They will then send the
-   (commitment, proof) pair to the Signer.  Upon receiving that pair,
-   the Signer will first have to verify the proof of correctness of the
-   commitment.  If the commitment is valid, they will then be able to
-   use it in generating a BBS signature.  The resulting signature will
-   be a valid BBS signature over the messages committed by the Prover.
-   The Signer can optionally include messages to the signature, in
-   addition to the ones committed by the prover.  Upon receiving the
-   blind BBS signature, the Prover can verify it using the messages they
-   committed to together with the messages the Signer included to the
-   signature, and then use it to generate BBS proofs normally, as
-   described in [I-D.irtf-cfrg-bbs-signatures].
+   The BBS digital signature scheme, as defined in
+   [I-D.irtf-cfrg-bbs-signatures], can be extended to support blind
+   signatures functionality.  In a blind signatures setting, the user
+   (called the Prover in the context of the BBS scheme) will request a
+   signature on a list of messages, without revealing those messages to
+   the Signer (who can optionally also include messages of their
+   choosing to the signature).
+
+   By allowing the Prover to acquire a valid signature over messages not
+   known to the Signer, blind signatures address some limitations of
+   their plain digital signature counterparts.  In the BBS scheme,
+   knowledge of a valid signature allows generation of BBS proofs.  As a
+   result, a signature compromise (by an eavesdropper, a phishing
+   attack, a leakage of the Signer's logs etc.,) can lead to
+   impersonation of the Prover by malicious actors (especially in cases
+   involving "long-lived" signatures, as in digital credentials
+   applications etc.,).  Using Blind BBS Signatures on the other hand,
+   the Prover can commit to a secret message (for example, a private
+   key) before issuance, guaranteeing that no one will be able to
+   generate a valid proof without knowledge of their secret.
+
+   Furthermore, applications like Privacy Pass
+   ([I-D.ietf-privacypass-protocol]) may require a signature to be
+   "scoped" to a specific audience or session (as to require "fresh"
+   signatures for different sessions etc.,).  However, simply sending an
+   audience or session identifier to the Signer (to be included in the
+   signature), will compromise the privacy guarantees that these
+   applications try to enforce.  Using blind signing, the Prover will be
+   able to require signatures bound to those values, without having to
+   reveal them to the Signer.
+
+   The presented protocol, compared to the scheme defined in
+   [I-D.irtf-cfrg-bbs-signatures], introduces an additional
+   communication step between the Prover and the Signer.  The Prover
+   will start by constructing a "hiding" commitment to the messages they
+   want to get a signature on (i.e., a commitment which reveals no
+   information about the committed values), together with a proof of
+   correctness of that commitment.  They will send the (commitment,
+   proof) pair to the Signer, who, upon receiving the pair, will attempt
+   to verify the commitment's proof of correctness.  If successful, they
+   will use it in generating a BBS signature over the messages committed
+   by the Prover, including their own messages if any.
+
+   This document, other than defining the operation for creating and
+   verifying a commitment, it also details a core signature generation
+   operation, different from the one presented in
+   [I-D.irtf-cfrg-bbs-signatures], meant to handle the computation of
+   the blind signature.  The document will also define a new BBS
+   Interface, which is needed to handle the different inputs (i.e.,
+   messages committed by the Prover or chosen by the Signer etc.,).  The
+   signature verification and proof generation core cryptographic
+   operations however, will work as described in
+   [I-D.irtf-cfrg-bbs-signatures].  To further facilitate deployment,
+   both the exposed interface as well as the core cryptographic
+   operation of proof verification will be the same as the one detailed
+   in [I-D.irtf-cfrg-bbs-signatures].
 
    Below is a basic diagram describing the main entities involved in the
    scheme.
@@ -102,17 +171,17 @@ Table of Contents
      |          |                                          |           |
      |          |                                          |           |
      |          |<-(2)* Commitment + Proof of Correctness--|           |
-     |  Signer  |                                          |  Holder/  |
-     |          |-------(4)* Send signature + msgs-------->|  Prover   |
+     |  Signer  |                                          |   Prover  |
+     |          |-------(4)* Send signature + msgs-------->|           |
      |          |                                          |           |
      |          |                                          |           |
      +----------+                                          +-----------+
                                                                  |
                                                                  |
                                                                  |
-                                                          (5)* Send proof
+                                                         (5)* Send proof
                                                                  +
-                                                           disclosed msgs
+                                                          disclosed msgs
                                                                  |
                                                                  |
                                                                 \ /
@@ -120,7 +189,7 @@ Table of Contents
                                                            |           |
                                                            |           |
                                                            |           |
-                                                           | Verifier  |
+                                                           |  Verifier |
                                                            |           |
                                                            |           |
                                                            |           |
@@ -152,11 +221,11 @@ Table of Contents
    committed_messages  A list of messages committed by the Prover to a
       commitment.
    commitment_proof  A zero knowledge proof of correctness of a
-      commitment, consisting from a scalar value, a possibly empty set
-      of scalars (of length equal to the number of committed_messages,
-      see above) and another scalar, in that order.
-   prover_blind  A random scalar used to blind (i.e., randomize) the
-      commitment constructed by the prover.
+      commitment, consisting of a scalar value, a possibly empty set of
+      scalars (of length equal to the number of committed_messages, see
+      above) and another scalar, in that order.
+   secret_prover_blind  A random scalar used to blind (i.e., randomize)
+      the commitment constructed by the prover.
    signer_blind  A random scalar used by the signer to optionally re-
       blind the received commitment.
 
@@ -170,14 +239,16 @@ Table of Contents
    list.append(elements)  Append either a single element or a list of
       elements to the end of a list, maintaining the same order of the
       list's elements as well as the appended elements.  For example,
-      given list = [a, b, c] and elements = [d, a], then
-      list.append(elements) = [a, b, c, d, a].
+      given list = [a, b, c] and elements = [d, a], the result of
+      list.append(elements) will be [a, b, c, d, a].
 
 2.  Conventions
 
-   The keywords MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD,
-   SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL, when they appear in this
-   document, are to be interpreted as described in [RFC2119].
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
 
 3.  BBS Signature Scheme Operations
 
@@ -190,24 +261,28 @@ Table of Contents
 
    *  BBS.CoreVerify: Refers to the CoreVerify operation defined in
       Section 3.6.2 (https://www.ietf.org/archive/id/draft-irtf-cfrg-
-      bbs-signatures-04.html#name-coreverify) of
+      bbs-signatures-05.html#name-coreverify) of
       [I-D.irtf-cfrg-bbs-signatures].
    *  BBS.CoreProofGen: Refers to the CoreProofGen operation defined in
       Section 3.6.3 (https://www.ietf.org/archive/id/draft-irtf-cfrg-
-      bbs-signatures-04.html#name-coreproofgen) of
+      bbs-signatures-05.html#name-coreproofgen) of
       [I-D.irtf-cfrg-bbs-signatures].
    *  BBS.create_generators: Refers to the create_generators operation
       defined in Section 4.1.1 (https://www.ietf.org/archive/id/draft-
-      irtf-cfrg-bbs-signatures-04.html#name-generators-calculation) of
+      irtf-cfrg-bbs-signatures-05.html#name-generators-calculation) of
       [I-D.irtf-cfrg-bbs-signatures].
    *  BBS.messages_to_scalars: Refers to the messages_to_scalars
       operation defined in Section 4.1.2
       (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-
-      04.html#name-messages-to-scalars) of
+      05.html#name-messages-to-scalars) of
       [I-D.irtf-cfrg-bbs-signatures].
    *  BBS.get_random_scalars: Refers to the get_random_scalars operation
       defined in Section 4.2.1 (https://www.ietf.org/archive/id/draft-
-      irtf-cfrg-bbs-signatures-04.html#name-random-scalars) of
+      irtf-cfrg-bbs-signatures-05.html#name-random-scalars) of
+      [I-D.irtf-cfrg-bbs-signatures].
+   *  BBS.hash_to_scalar: Refers to the hash_to_scalar operation defined
+      in Section 4.2.2 (https://www.ietf.org/archive/id/draft-irtf-cfrg-
+      bbs-signatures-05.html#name-hash-to-scalar) of
       [I-D.irtf-cfrg-bbs-signatures].
 
 4.  Scheme Definition
@@ -216,56 +291,59 @@ Table of Contents
 
 4.1.1.  Commitment Computation
 
-   This operation is used by the Prover to create commitment to a set of
-   messages (committed_messages), that they intent to include to the
-   signature.  Note that this operation returns both the serialized
-   combination of the commitment and its proof of correctness
+   This operation is used by the Prover to create a commitment to a set
+   of messages (committed_messages), that they intend to include to the
+   blind signature.  Note that this operation returns both the
+   serialized combination of the commitment and its proof of correctness
    (commitment_with_proof), as well as the random scalar used to blind
-   the commitment (prover_blind).
+   the commitment (secret_prover_blind).
 
-(commitment_with_proof, prover_blind) = Commit(committed_messages,
-                                                                 api_id)
+(commitment_with_proof, secret_prover_blind) = Commit(
+                                                   committed_messages,
+                                                   api_id)
 
 Inputs:
 
 - committed_messages (OPTIONAL), a vector of octet strings. If not
                                  supplied it defaults to the empty
-                                 array "()".
+                                 array ("()").
 - api_id (OPTIONAL), octet string. If not supplied it defaults to the
                      empty octet string ("").
 
 Outputs:
 
-- (commitment_with_proof, prover_blind), a tuple comprising from an
-                                         octet string and a random
-                                         scalar in that order.
+- (commitment_with_proof, secret_prover_blind), a tuple comprising from
+                                                an octet string and a
+                                                random scalar in that
+                                                order.
 
 Procedure:
 
-1.  M = length(messages)
+1.  M = length(committed_messages)
 2.  generators = BBS.create_generators(M + 2, api_id)
 3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
 
 4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages,
                                                                  api_id)
-5.  (prover_blind, s~, m~_1, ..., m~_M) = BBS.get_random_scalars(M + 2)
+5.  (secret_prover_blind, s~, m~_1, ..., m~_M)
+                                         = BBS.get_random_scalars(M + 2)
 
-6.  C = Q_2 * prover_blind + J_1 * msg_1 + ... + J_M * msg_M
+6.  C = Q_2 * secret_prover_blind + J_1 * msg_1 + ... + J_M * msg_M
 7.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
 
 8.  challenge = calculate_blind_challenge(C, Cbar, generators, api_id)
 
-9.  s^ = s~ + prover_blind * challenge
+9.  s^ = s~ + secret_prover_blind * challenge
 10. for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
 11. proof = (s^, (m^_1, ..., m^_M), challenge)
 12. commit_with_proof_octs = commitment_with_proof_to_octets(C, proof)
-13. return (commit_with_proof_octs, prover_blind)
+13. return (commit_with_proof_octs, secret_prover_blind)
 
 4.1.2.  Commitment Verification
 
    This operation is used by the Signer to verify the correctness of a
    commitment_proof for a supplied commitment, over a list of points of
-   G1 called the blind_generators, used to generate that commitment.
+   G1 called the blind_generators, used to compute that commitment.
 
 result = verify_commitment(commitment, commitment_proof,
                                                blind_generators, api_id)
@@ -313,18 +391,18 @@ Procedure:
    operations.  The inputted messages to the defined Interface will be
    mapped to scalars using the messages_to_scalars operation defined in
    Section 4.1.2 (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-
-   signatures-04.html#name-messages-to-scalars) of
+   signatures-05.html#name-messages-to-scalars) of
    [I-D.irtf-cfrg-bbs-signatures].  The generators will be created using
    the create_generators operation defined in Section Section 4.1.1
    (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-
-   04.html#name-generators-calculation) of
+   05.html#name-generators-calculation) of
    [I-D.irtf-cfrg-bbs-signatures].
 
    Other than the BlindSign operation defined in Section 4.2.1, which
    uses the CoreBlindSign procedure, defined in Section 4.3.1, all other
    interface operations defined in this section use the core operations
    defined in Section 3.6 (https://www.ietf.org/archive/id/draft-irtf-
-   cfrg-bbs-signatures-04.html#name-core-operations) of
+   cfrg-bbs-signatures-05.html#name-core-operations) of
    [I-D.irtf-cfrg-bbs-signatures].
 
 4.2.1.  Blind Signature Generation
@@ -332,9 +410,9 @@ Procedure:
    This operation returns a BBS blind signature from a secret key (SK),
    over a header, a set of messages and optionally a commitment value
    (see Section 1.1).  If supplied, the commitment value must be
-   accompanied by its proof of correctness (commitment_with_proof), as
-   the first element outputted by the Commit operation (Section 4.1.1).
-   The issuer can also further randomize the supplied commitment, by
+   accompanied by its proof of correctness (commitment_with_proof, as
+   outputted by the Commit operation defined in Section 4.1.1).  The
+   issuer can also further randomize the supplied commitment, by
    supplying a random scalar (signer_blind), that MUST be computed as,
 
    signer_blind = BBS.get_random_scalars(1)
@@ -362,17 +440,17 @@ Inputs:
                                     defaults to the empty string ("").
 - header (OPTIONAL), an octet string containing context and application
                      specific information. If not supplied, it defaults
-                     to an empty string.
+                     to an empty string ("").
 - messages (OPTIONAL), a vector of octet strings. If not supplied, it
-                       defaults to the empty array "()".
+                       defaults to the empty array ("()").
 - signer_blind (OPTIONAL), a random scalar value. If not supplied it
-                           defaults to zero "0".
+                           defaults to zero ("0").
 
 Parameters:
 
 - api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
           ciphersuite_id is defined by the ciphersuite and
-          "BLIND_H2G_HM2S_"is an ASCII string comprised of 15 bytes.
+          "BLIND_H2G_HM2S_"is an ASCII string composed of 15 bytes.
 - (octet_point_length, octet_scalar_length), defined by the ciphersuite.
 
 Outputs:
@@ -414,17 +492,17 @@ Procedure:
    This operation validates a blind BBS signature (signature), given the
    Signer's public key (PK), a header (header), a set of known to the
    Signer messages (messages) and if used, a set of committed messages
-   (committed_messages), the prover_blind as returned by the Commit
-   operation (Section 4.1.1) and a blind factor supplied by the Signer
-   (signer_blind).
+   (committed_messages), the secret_prover_blind as returned by the
+   Commit operation (Section 4.1.1) and a blind factor supplied by the
+   Signer (signer_blind).
 
    This operation makes use of the CoreVerify operation as defined in
    Section 3.6.2 (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-
-   signatures-04.html#name-coreverify) of
+   signatures-05.html#name-coreverify) of
    [I-D.irtf-cfrg-bbs-signatures].
 
 result = Verify(PK, signature, header, messages, committed_messages,
-                                             prover_blind, signer_blind)
+                                      secret_prover_blind, signer_blind)
 
 Inputs:
 
@@ -440,8 +518,8 @@ Inputs:
 - committed_messages (OPTIONAL), a vector of octet strings. If not
                                  supplied, it defaults to the empty
                                  array "()".
-- prover_blind (OPTIONAL), a scalar value. If not supplied it defaults
-                           to zero "0".
+- secret_prover_blind (OPTIONAL), a scalar value. If not supplied it
+                                  defaults to zero "0".
 - signer_blind (OPTIONAL), a scalar value. If not supplied it defaults
                            to zero "0".
 
@@ -450,7 +528,7 @@ Parameters:
 
 - api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
           ciphersuite_id is defined by the ciphersuite and
-          "BLIND_H2G_HM2S_"is an ASCII string comprised of 15 bytes.
+          "BLIND_H2G_HM2S_"is an ASCII string composed of 15 bytes.
 
 Outputs:
 
@@ -464,8 +542,8 @@ Deserialization:
 Procedure:
 
 1. message_scalars = ()
-2. if prover_blind != 0, message_scalars.append(
-                                            prover_blind + signer_blind)
+2. if secret_prover_blind != 0, message_scalars.append(
+                                     secret_prover_blind + signer_blind)
 3. message_scalars.append(BBS.messages_to_scalars(
                                             committed_messages, api_id))
 4. message_scalars.append(BBS.messages_to_scalars(messages, api_id))
@@ -486,7 +564,7 @@ Procedure:
    signatures.html#name-proof-generation-proofgen)), the ProofGen
    operation defined in this section accepts 2 different lists of
    messages and disclosed indexes, one for the messages known to the
-   Signer (messages) and teh corresponding disclosed indexes
+   Signer (messages) and the corresponding disclosed indexes
    (disclosed_indexes) and one for the messages committed by the Prover
    (committed_messages) and the corresponding disclosed indexes
    (disclosed_commitment_indexes).
@@ -496,17 +574,17 @@ Procedure:
    is done to avoid revealing which of the disclosed messages where
    committed by the Prover and which are known to the Verifier.  To this
    end, the BlindProofGen operation defined in this section, uses the
-   get_disclosed_data defined in Section 5 to combine and return the
-   disclosed messages and the disclosed indexes that the prover should
-   present to the Verifier.
+   get_disclosed_data defined in Section 5 to combine the different
+   messages and indexes lists, to return the disclosed messages and the
+   disclosed indexes that the prover should present to the Verifier.
 
-   Lastly, the the operation also expects the prover_blind (as returned
-   from the Commit operation defined in Section 4.1.1) and signer_blind
-   (as inputted in the BlindSign operation defined in Section 4.2.1)
-   values.  If the BBS signature is generated using a commitment value,
-   then the prover_blind returned by the Commit operation used to
-   generate the commitment should be provided to the ProofGen operation
-   (otherwise the resulting proof will be invalid).
+   Lastly, the the operation also expects the secret_prover_blind (as
+   returned from the Commit operation defined in Section 4.1.1) and
+   signer_blind (as inputted in the BlindSign operation defined in
+   Section 4.2.1) values.  If the BBS signature is generated using a
+   commitment value, then the secret_prover_blind returned by the Commit
+   operation used to generate the commitment should be provided to the
+   ProofGen operation (otherwise the resulting proof will be invalid).
 
    Note that the BlindProofGen operation defined in this section returns
    both the generated proof as an octet string, together with a vector
@@ -515,7 +593,7 @@ Procedure:
 
    This operation makes use of the CoreProofGen operation as defined in
    Section 3.6.3 (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-
-   signatures-04.html#name-coreproofgen) of
+   signatures-05.html#name-coreproofgen) of
    [I-D.irtf-cfrg-bbs-signatures].
 
 (proof, disclosed_msgs, disclosed_idxs)
@@ -527,7 +605,7 @@ Procedure:
                                            committed_messages,
                                            disclosed_indexes,
                                            disclosed_commitment_indexes,
-                                           prover_blind,
+                                           secret_prover_blind,
                                            signer_blind)
 
 Inputs:
@@ -556,8 +634,8 @@ Inputs:
                                            messages. If not supplied, it
                                            defaults to the empty array
                                            "()".
-- prover_blind (OPTIONAL), a scalar value. If not supplied it defaults
-                           to zero "0".
+- secret_prover_blind (OPTIONAL), a scalar value. If not supplied it
+                                  defaults to zero "0".
 - signer_blind (OPTIONAL), a scalar value. If not supplied it defaults
                            to zero "0".
 
@@ -566,7 +644,7 @@ Parameters:
 
 - api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
           ciphersuite_id is defined by the ciphersuite and
-          "BLIND_H2G_HM2S_"is an ASCII string comprised of 15 bytes.
+          "BLIND_H2G_HM2S_"is an ASCII string composed of 15 bytes.
 
 Outputs:
 
@@ -588,8 +666,8 @@ Deserialization:
 Procedure:
 
 1.  message_scalars = ()
-2.  if prover_blind != 0, message_scalars.append(
-                                            prover_blind + signer_blind)
+2.  if secret_prover_blind != 0, message_scalars.append(
+                                     secret_prover_blind + signer_blind)
 
 4.  message_scalars.append(BBS.messages_to_scalars(
                                    committed_messages, api_id))
@@ -602,7 +680,7 @@ Procedure:
                                   committed_messages,
                                   disclosed_indexes,
                                   disclosed_commitment_indexes,
-                                  commitment_used)
+                                  secret_prover_blind)
 8.  if disclosed_data is INVALID, return INVALID.
 9.  (disclosed_msgs, disclosed_idxs) = disclosed_data
 
@@ -621,11 +699,11 @@ Procedure:
 
    api_id = ciphersuite_id || "BLIND_H2G_HM2S_", where ciphersuite_id is
             defined by the ciphersuite and "BLIND_H2G_HM2S_"is an ASCII
-            string comprised of 15 bytes.
+            string composed of 15 bytes.
 
-   The purpose of the above, is to reduce the information a Verifier may
-   get, regarding which of the disclosed messages where committed by the
-   Prover and which where known to the Issuer.  For this purpose, the
+   The purpose of the above is to reduce the information a Verifier may
+   get, regarding which of the disclosed messages were committed by the
+   Prover and which were known to the Issuer.  For this purpose, the
    Prover MUST follow the procedure described in Section 5 to prepare
    the data that will be supplied to the proof Verifier.
 
@@ -674,7 +752,7 @@ Procedure:
 
  - api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
            ciphersuite_id is defined by the ciphersuite and
-           "BLIND_H2G_HM2S_"is an ASCII string comprised of 15 bytes.
+           "BLIND_H2G_HM2S_"is an ASCII string composed of 15 bytes.
 
  Outputs:
 
@@ -685,7 +763,7 @@ Procedure:
 
  1. signature_dst, an octet string representing the domain separation
                    tag: api_id || "H2S_" where "H2S_" is an ASCII string
-                   comprised of 4 bytes.
+                   composed of 4 bytes.
 
  Deserialization:
 
@@ -701,16 +779,18 @@ Procedure:
  4. (commit, M) = commit_res
 
  5. Q_1 = generators[0]
- 6. commitment_with_proof != "", Q_2 = generators[1]
+ 6. Q_2 = Identity_G1
+ 7. if commitment_with_proof != "", Q_2 = generators[1]
 
- 7. (H_1, ..., H_L) = generators[M + 1..M + L + 1]
+ 8. (H_1, ..., H_L) = generators[M + 1..M + L + 1]
 
  Procedure:
 
  1. domain = calculate_domain(PK, generators, header, api_id)
 
  2. e_octs = serialize((SK, domain, msg_1, ..., msg_L, signer_blind))
- 3. e = hash_to_scalar(e_octs || commitment_with_proof, signature_dst)
+ 3. e = BBS.hash_to_scalar(e_octs || commitment_with_proof,
+                                                       signature_dst)
 
  // if a commitment is not supplied, Q_2 = Identity_G1, meaning that
  // signer_blind will be ignored.
@@ -723,20 +803,20 @@ Procedure:
 
 5.  Present and Verify a BBS Proof
 
-   To avoid revealing to the proof Verifier which messages are committed
-   to the signature, and which where known to the Signer, after
+   To avoid revealing which messages are committed to the signature, and
+   which were known to the Signer to the proof Verifier, after
    calculating a BBS proof, the Prover will need to combine the
    disclosed committed messages as well as the disclosed messages known
    to the Signer to a single disclosed messages list.  The same holds
    for the disclosed message indexes, where the ones corresponding to
    committed messages and the ones corresponding to messages known by
-   the Signer should be combined together.  To do that, the Prover MUST
-   follow the following operation.
+   the Signer should be combined together.
 
 disclosed_data = get_disclosed_data(messages,
                                     committed_messages,
                                     disclosed_indexes,
-                                    disclosed_commitment_indexes)
+                                    disclosed_commitment_indexes,
+                                    secret_prover_blind)
 
 Inputs:
 
@@ -762,28 +842,31 @@ Outputs
 
 Deserialization:
 
-1. L = length(disclosed_indexes)
+1. L = length(messages)
 2. M = length(committed_messages)
 3. (i1, ..., iL) = disclosed_indexes
 4. (j1, ...., jL) = disclosed_commitment_indexes
 
-5. if length(messages) < L, return INVALID
-6. if length(committed_messages) < M, return INVALID
+5. if length(disclosed_indexes) > L, return INVALID
+6. if length(disclosed_commitment_indexes) > M, return INVALID
 
 Procedure:
 
+// determine if a commitment was used
+1. if secret_prover_blind == 0, comm_used = 0, else comm_used = 1
+
 // combine the disclosed indexes
-3. indexes = ()
-4. for i in disclosed_commitment_indexes: indexes.append(i + 1)
-5. for j in disclosed_indexes: indexes.append(M + j + 1)
+2. indexes = ()
+3. for i in disclosed_commitment_indexes: indexes.append(i + comm_used)
+4. for j in disclosed_indexes: indexes.append(M + j + comm_used)
 
-// combine the revealed messages
-6. disclosed_messages = (messages[i1], ..., messages[iL])
-7. disclosed_committed_messages = (committed_messages[j1], ...
+// combine the disclosed messages
+5. disclosed_messages = (messages[i1], ..., messages[iL])
+6. disclosed_committed_messages = (committed_messages[j1], ...
                                             ..., committed_messages[jM])
-8. disclosed_messages.append(disclosed_committed_messages)
+7. disclosed_messages.append(disclosed_committed_messages)
 
-9. return (disclosed_messages, indexes)
+8. return (disclosed_messages, indexes)
 
 6.  Utilities
 
@@ -805,7 +888,7 @@ Procedure:
  - blind_challenge_dst, an octet string representing the domain
                         separation tag: api_id || "H2S_" where
                         ciphersuite_id is defined by the ciphersuite and
-                        "H2S_" is an ASCII string comprised of 4 bytes.
+                        "H2S_" is an ASCII string composed of 4 bytes.
 
  Deserialization:
 
@@ -817,7 +900,7 @@ Procedure:
  1. c_arr = (C, Cbar, M)
  2. c_arr.append(generators)
  3. c_octs = serialize(c_arr)
- 4. return hash_to_scalar(c_octs, blind_challenge_dst)
+ 4. return BBS.hash_to_scalar(c_octs, blind_challenge_dst)
 
 6.2.  Commitment Validation and Deserialization
 
@@ -863,7 +946,7 @@ Procedure:
 6.  if length(generators) < M + 1, return INVALID
 7.  blind_generators = generators[1..M + 1]
 
-8.  validation_res = verify_commitment(COMMIT, commit_proof,
+8.  validation_res = verify_commitment(commit, commit_proof,
                                                blind_generators, api_id)
 9.  if validation_res is INVALID, return INVALID
 10. (commitment, M)
@@ -872,25 +955,25 @@ Procedure:
 
 6.3.1.  Commitment with Proof to Octets
 
-commitment_octets = commitment_with_proof_to_octets(commitment, proof) If the proof is INVALID,
+ commitment_octets = commitment_with_proof_to_octets(commitment, proof)
 
-Inputs:
+ Inputs:
 
-- commitment (REQUIRED), a point of G1.
-- proof (REQUIRED), a vector comprising of a scalar, a possibly empty
-                    vector of scalars and another scalar in that order.
+ - commitment (REQUIRED), a point of G1.
+ - proof (REQUIRED), a vector comprising of a scalar, a possibly empty
+                     vector of scalars and another scalar in that order.
 
-Outputs:
+ Outputs:
 
-- commitment_octets, an octet string or INVALID.
+ - commitment_octets, an octet string or INVALID.
 
-Procedure:
+ Procedure:
 
-1. commitment_octs = serialize(commitment)
-2. if commitment_octs is INVALID, return INVALID
-3. proof_octs = serialize(proof)
-4. if proof_octs is INVALID, return INVALID
-5. return commitment_octs || proof_octs
+ 1. commitment_octs = serialize(commitment)
+ 2. if commitment_octs is INVALID, return INVALID
+ 3. proof_octs = serialize(proof)
+ 4. if proof_octs is INVALID, return INVALID
+ 5. return commitment_octs || proof_octs
 
 6.3.2.  Octet to Commitment with Proof
 
@@ -938,7 +1021,62 @@ Procedure:
 
 7.  Security Considerations
 
-   // TODO
+   Security considerations detailed in Section 6
+   (https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-
+   05.html#name-security-considerations) of
+   [I-D.irtf-cfrg-bbs-signatures] apply to this draft as well.
+
+7.1.  Prover Blind Factor
+
+   The random scalar value secret_prover_blind calculated and returned
+   by the Commit operation is responsible for "hiding" the committed
+   messages (otherwise, in many practical applications, the Signer may
+   be able to retrieve them).  Furthermore, it guarantees that the
+   entity generating the BBS proof (see BlindProofGen defined in
+   Section 4.2.3) has knowledge of that factor.  As a result, the
+   secret_prover_blind MUST remain private by the Prover and it MUST be
+   generated using a cryptographically secure pseudo-random number
+   generator.  See Section 6.7 (https://www.ietf.org/archive/id/draft-
+   irtf-cfrg-bbs-signatures-05.html#name-randomness-requirements) of
+   [I-D.irtf-cfrg-bbs-signatures] on recommendations and requirements
+   for implementing the BBS.get_random_scalars operation (which is used
+   to calculate the secret_prover_blind value).
+
+7.2.  Key Binding
+
+   One natural use case for the blind signatures extension of the BBS
+   scheme is key binding.  In the context of BBS Signatures, key binding
+   guarantees that only entities in control of a specific private key
+   can compute BBS proofs.  This can be achieved by committing to the
+   private key prior to issuance, resulting to a BBS signature that
+   includes that key as one of the signed messages.  Creating a BBS
+   proof from that signature will then require knowledge of that key
+   (similar to any signed message).  The Prover MUST NOT disclose that
+   key as part of a proof generation procedure.  Note also that the
+   secret_prover_blind value returned by the Commit operation defined in
+   Section 4.1.1 (see Section 7.1), has a similar property, i.e., it's
+   knowledge is required to generate a proof from a blind signature.
+   Many applications however, requiring key binding, mandate that the
+   same private key is used among multiple signatures, whereas the
+   secret_prover_blind is uniquely generated for each blind signature
+   issuance request.  In those cases, a commitment to a private key must
+   be used, as described above.
+
+7.3.  Commitment Randomization
+
+   A commitment is "randomized" using the secret_prover_blind random
+   value.  The Signer MAY elect to re-randomize a commitment by using
+   it's own randomness.  This can be helpful for applications that need
+   to guarantee the uniqueness of each commitment (and of the resulting
+   signatures) supplied by (untrusted) Provers.  Examples include voting
+   systems, where each unique signature will provide a single vote.  To
+   re-randomize a commitment, the Signer can provide the signer_blind
+   input to the BlindSign operation defined in Section 4.2.1.  If used,
+   the signer_blind MUST be computed using the BBS.get_random_scalars
+   operation.  In contrast with the secret_prover_blind value however,
+   the signer_blind doesn't need to be secret.  The Signer will need to
+   return it to the Prover, who requires it to verify the signature and
+   generate the proofs.
 
 8.  Ciphersuites
 
@@ -964,8 +1102,8 @@ Mocked RNG parameters:
     count =  "2"
 
 committed_messages = "[  ]"
-prover_blind = "30bd5c9bd2b61c44dd169c92cf28bb607830c56073f10e7a800c857c
-                b05ec249"
+secret_prover_blind = "30bd5c9bd2b61c44dd169c92cf28bb607830c56073f10e7a8
+                       00c857cb05ec249"
 commitment_with_proof = "95a6f21801b2010a9016c590cd6f0d59682e908a46cdc98
                          56eea2c5000545626fc755c13ce93a71e371b0ae0549132
                          6302a8e40b4fc1197d75c46d2114c711d9186e4af0498da
@@ -986,8 +1124,8 @@ committed_message_3 = "835889a40744813a892eff9deb1edaeb"
 committed_message_4 = "e1ca9729410dc6ba"
 committed_message_5 = ""
 
-prover_blind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f8fcb152
-                5c93b649"
+secret_prover_blind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f
+                       8fcb1525c93b649"
 commitment_with_proof = "a90a9c986623c7df72f1b55f885a7f25070d5b73178f713
                          9fd6e948067e9f748b1cc0d4db3cbb9123a18851714ec9c
                          161b678690dbd0ae67f4bac061bb80824ba208906d58158
@@ -1008,7 +1146,7 @@ commitment_with_proof = "a90a9c986623c7df72f1b55f885a7f25070d5b73178f713
 Mocked RNG parameters for commitment:
     dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RAN
            DOM_SCALARS_DST_"
-    count =  "3"
+    count =  "2"
 
 Mocked RNG parameters for the signature:
     dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_
@@ -1020,26 +1158,31 @@ PK = "92d37d1d6cd38fea3a873953333eab23a4c0377e3e049974eb62bd45949cdeb18f
       b0490edcd4429adff56e65cbce42cf188b31bddbd619e419b99c2c41b38179eb00
       1963bc3decaae0d9f702c7a8c004f207f46c734a5eae2e8e82833f3e7ea5"
 
-commitment_with_proof = "8cdb7fb0750140d7d6a21525bef3e6923d905f3eb855693
-                         6d5d67b1aec65e5ca3a8d2a6841c4d45e22f597cb5567d8
-                         5c4dbdd199b8975a6313c86328c5c0ad714b970ec0e5ed9
-                         2abfad2c6cb8857a0f96164f648c04118c9f9b710549f6f
-                         6a18141c1691c46ce77d6cf660e7b423d42d629608ab8a2
-                         e0169b15019f0d477e7a843510105afdc5212f9d7fe88c62bfcc9"
+commitment_with_proof = "95a6f21801b2010a9016c590cd6f0d59682e908a46cdc98
+                         56eea2c5000545626fc755c13ce93a71e371b0ae0549132
+                         6302a8e40b4fc1197d75c46d2114c711d9186e4af0498da
+                         b260ae56f81dbc59f7b2a9f4883479ce40e765a32b64817
+                         66ed5aeeddecd2decd277460a5e129a22934"
 header = "11223344556677889900aabbccddeeff"
 
 messages = "[  ]"
 
 committed_messages = "[  ]"
 
-prover_blind = "643a0c0bc86a50e0d8c00bfe6c8debd85373597e1aef6cc912838bf7
-                dc376e48"
+secret_prover_blind = "30bd5c9bd2b61c44dd169c92cf28bb607830c56073f10e7a8
+                       00c857cb05ec249"
 signer_blind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e
                 0a1e3c7f"
 
-signature = "aa620bdea25f4d65cef35c3b8c00ac091ebd4ff8819fa4164147ee58609
-             fcae5f217050162fe0d1ba3ce271df3715fe959646b063a0c65c295efd7
-             e2087a7c90340275c5b7c4f6f662ed752f25cebe6a"
+Signature trace:
+    B = "b34e5cf13d77074c4762d92f98cc6b8c2567c816a2ea792d0f49263b8da314b
+         5493830b78563fdb9e2abcab2a7a3c21f"
+    domain = "41f87ee87af7a093831d77576c64d41e0d89bcd05ea6c9dd5be25bce3c
+              728c55"
+
+signature = "90c93d864fb857dc4290e1cb2f6c82973c2562b4bfb8edb61c2300da84b
+             7d709733024c215acc0e224ee4b64ab5987d0312e84786009cece2aee01
+             884b19c81a592aefb557f025fccdd8c67ca0a5d8c3"
 
 9.1.2.2.  Multiple Prover Committed Messages, No Signer Messages
 
@@ -1081,21 +1224,27 @@ committed_message_3 = "835889a40744813a892eff9deb1edaeb"
 committed_message_4 = "e1ca9729410dc6ba"
 committed_message_5 = ""
 
-prover_blind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f8fcb152
-                5c93b649"
+secret_prover_blind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f
+                       8fcb1525c93b649"
 signer_blind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e
                 0a1e3c7f"
 
-signature = "a9e7aac03e325d343853ac5cfab4d67067051874a0737ba5225190abc52
-             258510b1fbb7413c9182fb7cdfeafc77e66a85d4f7402f18726bdd96e98
-             8c55516b36d51899b3b508ebe8525446edeb2198b8"
+Signature trace:
+    B = "a537c41dd0dac2de5d21296e32e43f07b27e2ea4c1757247c36fdf7d5541d9e
+         97a483e0b729a8b83638f15fba0cbda29"
+    domain = "2ff95924f5218644c1a5d1722d815146e5b2c195d231421aea572e0052
+              7849d2"
+
+signature = "b788904003da89dc167016c3d58a296a145c411df7cc616cfeb79db8d07
+             d5361210ef79599453acc7ee706d80e114be369ca4043e008ea4373e1d3
+             d7bb60c11161d1d6d67ad23a808f0ce52677c724dd"
 
 9.1.2.3.  No Prover Committed Messages, Multiple Signer Messages
 
 Mocked RNG parameters for commitment:
     dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RAN
            DOM_SCALARS_DST_"
-    count =  "3"
+    count =  "2"
 
 Mocked RNG parameters for the signature:
     dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_
@@ -1107,12 +1256,11 @@ PK = "92d37d1d6cd38fea3a873953333eab23a4c0377e3e049974eb62bd45949cdeb18f
       b0490edcd4429adff56e65cbce42cf188b31bddbd619e419b99c2c41b38179eb00
       1963bc3decaae0d9f702c7a8c004f207f46c734a5eae2e8e82833f3e7ea5"
 
-commitment_with_proof = "8cdb7fb0750140d7d6a21525bef3e6923d905f3eb855693
-                         6d5d67b1aec65e5ca3a8d2a6841c4d45e22f597cb5567d8
-                         5c4dbdd199b8975a6313c86328c5c0ad714b970ec0e5ed9
-                         2abfad2c6cb8857a0f96164f648c04118c9f9b710549f6f
-                         6a18141c1691c46ce77d6cf660e7b423d42d629608ab8a2
-                         e0169b15019f0d477e7a843510105afdc5212f9d7fe88c62bfcc9"
+commitment_with_proof = "95a6f21801b2010a9016c590cd6f0d59682e908a46cdc98
+                         56eea2c5000545626fc755c13ce93a71e371b0ae0549132
+                         6302a8e40b4fc1197d75c46d2114c711d9186e4af0498da
+                         b260ae56f81dbc59f7b2a9f4883479ce40e765a32b64817
+                         66ed5aeeddecd2decd277460a5e129a22934"
 header = "11223344556677889900aabbccddeeff"
 
 messages_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4
@@ -1130,14 +1278,20 @@ messages_10 = ""
 
 committed_message = "[  ]"
 
-prover_blind = "643a0c0bc86a50e0d8c00bfe6c8debd85373597e1aef6cc912838bf7
-                dc376e48"
+secret_prover_blind = "30bd5c9bd2b61c44dd169c92cf28bb607830c56073f10e7a8
+                       00c857cb05ec249"
 signer_blind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e
                 0a1e3c7f"
 
-signature = "996053fd888a5f9f28841f408b05eaa4e3838a92e26dea50583b1cfa4ab
-             8c2bb2ce54f18394c90314f0bebc396f544c36ba50497aa531fcbf22454
-             78ae65f654dda1699d675d0e0102bacc6f162e3558"
+Signature trace:
+    B = "92c9bd227788c660f82397b7cadbebdcb83bfc4256362605caebd57849ca173
+         71c5dd67af7b763f0c207eb73cd0d9d97"
+    domain = "1561412ed694d0eb532e042ae2098fc999325394317c686ce94a84db29
+              552100"
+
+signature = "81d03e119cf3a1257a58b288c27132d0ec37e3695eb37ecc064094221ba
+             a4f9775483ed57227385659498480f8e92d8d28a9f576cbdc2f2613c68d
+             6184598dc47d9c12cc94654072bd9ee708f72d02b5"
 
 9.1.2.4.  Multiple Prover Committed and Signer Messages
 
@@ -1190,10 +1344,16 @@ committed_message_3 = "835889a40744813a892eff9deb1edaeb"
 committed_message_4 = "e1ca9729410dc6ba"
 committed_message_5 = ""
 
-prover_blind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f8fcb152
-                5c93b649"
+secret_prover_blind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f
+                       8fcb1525c93b649"
 signer_blind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e
                 0a1e3c7f"
+
+Signature trace:
+    B = "aad174dad5a717f105ef200da94a6a16ee1354f3a0095f082b9b3f621072e43
+         8f6889182cfec55d2db07d1b899e96c3d"
+    domain = "279f17f14e7e3986bb71cf6c8a1018460596e62eea6ed91bb81b9706f4
+              729f95"
 
 signature = "95ef34d43451fe55d3887c7d32955641dbd13814db0d5d55e63fee1f0d8
              e2bf5601924eb4e5015e895b5affe96f96d274bfcd2c2c902883cb210f2
@@ -1250,9 +1410,15 @@ committed_message_3 = "835889a40744813a892eff9deb1edaeb"
 committed_message_4 = "e1ca9729410dc6ba"
 committed_message_5 = ""
 
-prover_blind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f8fcb152
-                5c93b649"
+secret_prover_blind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f
+                       8fcb1525c93b649"
 signer_blind = "null"
+
+Signature trace:
+    B = "81717a1f1c72a748c6a071d58bab0f830169da872d79decde1212ef439f8a15
+         3340dcc9e61522f518980d0e584969178"
+    domain = "279f17f14e7e3986bb71cf6c8a1018460596e62eea6ed91bb81b9706f4
+              729f95"
 
 signature = "b074112a56caea128a775a9588ab9d2c168fbc40450ecb7b559d6ffb619
              89896f24783816324ffb55bade3d75c4edfdd03c8effa3dddc82612be45
@@ -1288,8 +1454,14 @@ messages_10 = ""
 
 committed_message = "null"
 
-prover_blind = "null"
+secret_prover_blind = "null"
 signer_blind = "null"
+
+Signature trace:
+    B = "94ff8f3965846c90397b2e3a38dd0349f4b7ba049209fc99048f482ba21147e
+         1c5bbe7f102fea9af93f47a7c5ad5a899"
+    domain = "4e6f04eeb36ed65d8f088e7adf6c106c0db79527243ce19389514b389a
+              cf7adf"
 
 signature = "8886984283bc433d56ac0f29bab40fb2273d0e7e42f5891c80c357473b5
              04e2aae77658efbb0035cbf32771b7fe8dbbc3509d8e6d2a2a9917304e5
@@ -1298,104 +1470,6 @@ signature = "8886984283bc433d56ac0f29bab40fb2273d0e7e42f5891c80c357473b5
 9.1.3.  Proof
 
 9.1.3.1.  All Prover Committed Messages and Signer Messages Disclosed
-
-Mocked RNG parameters for commitment:
-    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RAN
-           DOM_SCALARS_DST_"
-    count =  "7"
-
-Mocked RNG parameters for the signature:
-    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_
-           RANDOM_SCALARS_DST_"
-    count =  "1"
-
-Mocked RNG parameters for the proof:
-    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RAND
-           OM_SCALARS_DST_"
-    count =  "4"
-
-message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
-             45f02"
-message_2 = "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075
-             f9b80"
-message_3 = "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
-message_4 = "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
-message_5 = "496694774c5604ab1b2544eababcf0f53278ff50"
-message_6 = "515ae153e22aae04ad16f759e07237b4"
-message_7 = "d183ddc6e2665aa4e2f088af"
-message_8 = "ac55fb33a75909ed"
-message_9 = "96012096"
-message_10 = ""
-
-committed_message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310
-                       a1debdda4a45f02"
-committed_message_2 = "089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debd
-                       da4a45f02"
-committed_message_3 = "7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f0
-                       2"
-committed_message_4 = "fac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
-committed_message_5 = ""
-
-commitment_with_proof = "a90a9c986623c7df72f1b55f885a7f25070d5b73178f713
-                         9fd6e948067e9f748b1cc0d4db3cbb9123a18851714ec9c
-                         161b678690dbd0ae67f4bac061bb80824ba208906d58158
-                         6971c6a32e2a162eddf0ed4a8cc260f2cc9b505fd5ea078
-                         d21ae76159866c476cb129ad719511edbac763ec9b34c79
-                         43c520f598bacd7775e8345a9b3c2c2490fab27c97f1529
-                         ff319b4995ea15ff5e46ec26347d6a6bbf2e4b2a8da145f
-                         6afd5444464d86f79cd7df32fcc665b9245e138c752decf
-                         b3d507f2024af86b202741bf946e199ac77730a070821d7
-                         df69ce563d2d4142572431047dc6b544e4a8280ada8c3c0
-                         1a2d3f454e4cf1dc293f09e6a5b743f275286ce601f28b1
-                         838441265c1c18b4425b8bd3d5c"
-
-PK = "92d37d1d6cd38fea3a873953333eab23a4c0377e3e049974eb62bd45949cdeb18f
-      b0490edcd4429adff56e65cbce42cf188b31bddbd619e419b99c2c41b38179eb00
-      1963bc3decaae0d9f702c7a8c004f207f46c734a5eae2e8e82833f3e7ea5"
-signature = "95ef34d43451fe55d3887c7d32955641dbd13814db0d5d55e63fee1f0d8
-             e2bf5601924eb4e5015e895b5affe96f96d274bfcd2c2c902883cb210f2
-             bfca6b6c50b8e6768cda43000e6db777e2e0961fd9"
-
-header = "11223344556677889900aabbccddeeff"
-ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
-
-disclosed_indexes = "[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]"
-disclosed_commitment_indexes = "[ 0, 1, 2, 3, 4 ]"
-
-proverBlind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f8fcb1525
-               c93b649"
-signerBlind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0
-               a1e3c7f"
-
-(disclosed_msgs, disclosed_idxs) = {
-   1: "5982967821da3c5983496214df36aa5e58de6fa25314af4cf4c00400779f08c3"
-   2: "a75d8b634891af92282cc81a675972d1929d3149863c1fc0"
-   3: "835889a40744813a892eff9deb1edaeb"
-   4: "e1ca9729410dc6ba"
-   5: ""
-   6: "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
-   7: "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075f9b80"
-   8: "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
-   9: "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
-  10: "496694774c5604ab1b2544eababcf0f53278ff50"
-  11: "515ae153e22aae04ad16f759e07237b4"
-  12: "d183ddc6e2665aa4e2f088af"
-  13: "ac55fb33a75909ed"
-  14: "96012096"
-  15: ""
-}
-
-proof = "8f7b4f0b981ff29ade10c219b88d54e78f6b459eab48847d34771c8545b6c95
-         74ce41366df069fbeaa845558324d15bbade317260bea2518454c1e8a564c87
-         cec8265252d3ea8671253fbef996ccd7c6982147ccd46262bdb872120661ca8
-         506674325123da437337591c48d58e9696eb8893fe71034cb7dba3b2c8c94e1
-         125552b709179bad4aa5242528bdd74f0a86713bcbde9a986a1c5c08fe40ce6
-         57bed6018ff462b7822361c72ecc3e3a5ae58ba570a1986f792ad312e7b18c8
-         6eeba2302a75fbb810a935a55e48c09d48bb8fa028ef302b415ce43fa56d240
-         20e0671"
-
-9.1.3.2.  Half Prover Committed Messages and All Signer Messages
-          Disclosed
 
 Mocked RNG parameters for commitment:
     dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RAN
@@ -1458,6 +1532,130 @@ header = "11223344556677889900aabbccddeeff"
 ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
 
 disclosed_indexes = "[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]"
+disclosed_commitment_indexes = "[ 0, 1, 2, 3, 4 ]"
+
+proverBlind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f8fcb1525
+               c93b649"
+signerBlind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0
+               a1e3c7f"
+
+(disclosed_msgs, disclosed_idxs) = {
+   1: "5982967821da3c5983496214df36aa5e58de6fa25314af4cf4c00400779f08c3"
+   2: "a75d8b634891af92282cc81a675972d1929d3149863c1fc0"
+   3: "835889a40744813a892eff9deb1edaeb"
+   4: "e1ca9729410dc6ba"
+   5: ""
+   6: "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
+   7: "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075f9b80"
+   8: "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
+   9: "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
+  10: "496694774c5604ab1b2544eababcf0f53278ff50"
+  11: "515ae153e22aae04ad16f759e07237b4"
+  12: "d183ddc6e2665aa4e2f088af"
+  13: "ac55fb33a75909ed"
+  14: "96012096"
+  15: ""
+}
+
+Proof trace:
+    T1 = "83b4acb093f60f6b91850bb4aa8c77d596a823770821106ecb41022d64dc5d
+          199f9cb2e178919b41babc06490900c384"
+    T2 = "b410ae7cabfbf8c754299a7b597978f38012122b56e04ce28da24ec0ffbf82
+          62391ae894b410d69bbc77a4aceb4c6a25"
+    domain = "279f17f14e7e3986bb71cf6c8a1018460596e62eea6ed91bb81b9706f4
+              729f95"
+
+    // random scalars
+    r1 = "49269fc9884182a1591f959e813384df71ffb220660cb2a4aa3956e27936d4
+          d8"
+    r2 = "66b80c544ba7563a7de236678d228a36195f2b483daec4c49470b63c7231cb
+          11"
+    e~ = "6714fe17c1529464fd269b37dda00e6cdd2b82b592a497cc52e78f24930eff
+          da"
+    r1~ = "1da4b2f8fe1790bbff2efabd71c8ed624f9fedd10d62dc7a3ca1088657ebf
+           220"
+    r3~ = "2354f9de39e2689b893f357e14cead4e405ab3486f188a0b5a503e733d007
+           588"
+
+    // m_tilde_scalars
+    m~_1 = "42510c348487be3c19994565911729eafcd4804dacf25a7cb7b7a634ddef
+            c3b5"
+
+proof = "b9e17ab6b187f62b1d57aa0601e837362237c17bf4f0262b9bf0c7245945cef
+         306f949faa8921dc550baa522aee9d128b6c3195da62659efd1c3e9095a5123
+         9b5931996f0b4bd1577cafcc3c2806bba419ec9580f8e12101441f247687645
+         9f595bfee618011969b7bc139480e0b6d8cd4f53b6dbb22718e3948caf3a692
+         694b6fc198329c5ceb021a9aa615b9dfd9dc6ec3714ff2caa95133f83f210de
+         4b32432b371e956fb1ef963db4f15acb6994e23fe0e27b8a92cbb4ec8c31458
+         911a05e84cdeed70a000ebcf4b4f5e3a51173c146307866abbe87292c4b5f5b
+         33ad3a44366b6b907519ab4f4353a44b6d8a6410b192d6d261c510dfa5d65f6
+         5fc568d101a1f063a786e47658db1d4b067897135e5b05ed483541eb523c39b
+         d69c91ff0783954bf76c2530c6dd814857e47e81c"
+
+9.1.3.2.  Half Prover Committed Messages and All Signer Messages
+          Disclosed
+
+Mocked RNG parameters for commitment:
+    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RAN
+           DOM_SCALARS_DST_"
+    count =  "7"
+
+Mocked RNG parameters for the signature:
+    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_
+           RANDOM_SCALARS_DST_"
+    count =  "1"
+
+Mocked RNG parameters for the proof:
+    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RAND
+           OM_SCALARS_DST_"
+    count =  "8"
+
+message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
+             45f02"
+message_2 = "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075
+             f9b80"
+message_3 = "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
+message_4 = "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
+message_5 = "496694774c5604ab1b2544eababcf0f53278ff50"
+message_6 = "515ae153e22aae04ad16f759e07237b4"
+message_7 = "d183ddc6e2665aa4e2f088af"
+message_8 = "ac55fb33a75909ed"
+message_9 = "96012096"
+message_10 = ""
+
+committed_message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310
+                       a1debdda4a45f02"
+committed_message_2 = "089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debd
+                       da4a45f02"
+committed_message_3 = "7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f0
+                       2"
+committed_message_4 = "fac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
+committed_message_5 = ""
+
+commitment_with_proof = "a90a9c986623c7df72f1b55f885a7f25070d5b73178f713
+                         9fd6e948067e9f748b1cc0d4db3cbb9123a18851714ec9c
+                         161b678690dbd0ae67f4bac061bb80824ba208906d58158
+                         6971c6a32e2a162eddf0ed4a8cc260f2cc9b505fd5ea078
+                         d21ae76159866c476cb129ad719511edbac763ec9b34c79
+                         43c520f598bacd7775e8345a9b3c2c2490fab27c97f1529
+                         ff319b4995ea15ff5e46ec26347d6a6bbf2e4b2a8da145f
+                         6afd5444464d86f79cd7df32fcc665b9245e138c752decf
+                         b3d507f2024af86b202741bf946e199ac77730a070821d7
+                         df69ce563d2d4142572431047dc6b544e4a8280ada8c3c0
+                         1a2d3f454e4cf1dc293f09e6a5b743f275286ce601f28b1
+                         838441265c1c18b4425b8bd3d5c"
+
+PK = "92d37d1d6cd38fea3a873953333eab23a4c0377e3e049974eb62bd45949cdeb18f
+      b0490edcd4429adff56e65cbce42cf188b31bddbd619e419b99c2c41b38179eb00
+      1963bc3decaae0d9f702c7a8c004f207f46c734a5eae2e8e82833f3e7ea5"
+signature = "95ef34d43451fe55d3887c7d32955641dbd13814db0d5d55e63fee1f0d8
+             e2bf5601924eb4e5015e895b5affe96f96d274bfcd2c2c902883cb210f2
+             bfca6b6c50b8e6768cda43000e6db777e2e0961fd9"
+
+header = "11223344556677889900aabbccddeeff"
+ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
+
+disclosed_indexes = "[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]"
 disclosed_commitment_indexes = "[ 0, 2, 4 ]"
 
 proverBlind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f8fcb1525
@@ -1481,16 +1679,46 @@ signerBlind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0
   15: ""
 }
 
-proof = "91665575a73848e98c009e0974c96b3b19ef168f19d07c40bd3c20ade5d592c
-         bf73be33bf72e8678d86ce029dae400488bb0356a7ae8da65057fa8bef5835b
-         c5690782cc33fe0ed8287cb207a5e53acb8434fdac71c89249690d8a5257c24
-         c7c09b37f5d6bb9bd6c8f2368ec3a57fde5f4c8f033fe292ed92a311eb163c5
-         4804101cdabef2dc9ad7d2c2bf6ce4cd6851b2f2b881a5c402ed59ab68d74f7
-         68a004d5b903db80073b2216e01cdc890b5dd335c332148e4f4f51fe52d3af2
-         94d86660f50d2949767fa2b5d85581425fa6721ffe64191b5d110c83b4f7b78
-         5a8c4991c1d4e3626b016cd3cd4d4da8548782a492ab2c200274732ceeeac83
-         98c2e4fd13884149434cb15342166cc6dc08cfa9822c50f9de52668168d2c6b
-         227d78cd9"
+Proof trace:
+   T1 = "b5c0697764d1f1dd7a080e37b4ab743ae90c754426f456f2317cac34ce2d830
+         48f54cc7212017e9c7b62c2c0323d380f"
+   T2 = "a929548dde575de8fed7bfc439f2d02788bd0b378048bc3c0c14ec3507f9245
+         f51e7c781187ee13899952cd1d187edb9"
+   domain = "279f17f14e7e3986bb71cf6c8a1018460596e62eea6ed91bb81b9706f47
+             29f95"
+
+   // random scalars
+   r1 = "11119e21b175fb9fc7c17cbbaf9f5193ff29018deab299e0179517f518c887c
+         a"
+   r2 = "293d6d461a4cfd449607b211dcc500540c49cc73d6c77b1ec62eb982be4935b
+         4"
+   e~ = "3bc9fe82bbca21200fbbff238cf666d79270bbfc9293ea3fed177ac128cff30
+         e"
+   r1~ = "5224e6c760e66d54dae6fac6adee3edca19df9f12f84416980b5c2820b647f
+          fd"
+   r3~ = "723457f7d95dfeb89077f16f58f343b1d53b44d474004564a8cc9be5c5cd32
+          44"
+
+   // m_tilde_scalars
+   m~_1 = "107b5b89bc2574eed71a48bf869b094351bcb2a32fe4ed0f5c62b9063a086
+           d4b"
+   m~_2 = "6c757b1e66cc101e9e69c2a7c665d68ce19193f11a28ac1efc0a41b5292a1
+           a87"
+   m~_3 = "635ef91197c84f74b14ef14ed7b74ea6a2c4770a1f665cd545854330e3550
+           221"
+
+proof = "a14083a6bcab28b937970650144a8b28819f723929aacf17a0f56b6f5e5d3bb
+         ce24fad0e3f8c76b5bad349d41705083189ae2702bc4a5b2bca322d3988d6ff
+         35055ac1b37589897e4424c4eee64c199a8b58263466f5b1859c24f5ee0e6d2
+         1bfaece4081d36caa8b80574072388dc2d17c72558fc725de00259c873596b7
+         6654e1291479d8f79fe4594e6b86310bebe738db8cab6c33e7104ddbbce9a34
+         3eba4b5788247ba0844bce2f589839ee771eb3d2e0cc0d56b43f2850dc24016
+         1aac8c3cb4e557ec444714505c8ff8c2a231a72a6a0fb335fcba737d1f3de54
+         a226533f3a008661279e80837e18bd81767ebd447f472600499ced38ce26502
+         f25e842b5cce3dc4cca9ab29bab1e7ee17675e6c2b9e94552dee5cb48f73db0
+         2934946da153ee8805cb89e73941d186ed255d9033b2c68ac32a9956b38b9cb
+         0688967bd6ae7a993aaac3047d0c6e611d2583ed5d0abe445cb55e8143822e1
+         f243f646a56d01b77c1e3aae12567d4a90b634e8063"
 
 9.1.3.3.  All Prover Committed Messages and Half Signer Messages
           Disclosed
@@ -1508,7 +1736,7 @@ Mocked RNG parameters for the signature:
 Mocked RNG parameters for the proof:
     dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RAND
            OM_SCALARS_DST_"
-    count =  "9"
+    count =  "11"
 
 message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
              45f02"
@@ -1576,19 +1804,55 @@ signerBlind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0
   14: "96012096"
 }
 
-proof = "a7b80f6273149595a700447699a0c52243a0259561cb9d184231752febb4eeb
-         03d5d4bdc8ed2fd5996aa4a995739b5bcb011c566e2bbc76910633abeab75f4
-         6174861180ca755a7b45207fde204f7639f470f5fb9b6e49de6dc6db1aaea85
-         faa029bfee9f3051fed89ea56b56d48e4a45b0db34b14903b0da74ccdbf57a2
-         64d1366eeca6c0eb286fb89d69a1672e1669e25c4648d4f3cb7a84c987cda84
-         3232d097c2d37bb2f34ae352fc70780aecbfc595943ae621fb0b7ea7ee8e2df
-         c8c3421a6485fa44ed135f632558a29c56a1393d9050f6c62d1dffad5ea5e26
-         1676e52494fd0036bfbe425e6e5d16da42614880be536db744d29e078696ab1
-         d45c46880847846f3b50673ae13c82807eae6df2328603f0fdb3caaa41c8935
-         b72b8268529943363497f7a642153294b4b3019e63a18286cd3ab583555ca42
-         07b878b3481f332cfc71a3e1f9920532f8306a4b65d4e4cfa60bfd9036c7eb8
-         5d2e6357f1d11af2ca6ecdacec12070728f09f59e25e1e06e37f7f098dd1d68
-         a10aab0e67ca"
+Proof trace:
+    T1 = "8b1b7f8070626bc7bcfbc210e00d513b10e412668b83360eade3201bebf2d5
+          421365816f841d08d142e61a28f8051817"
+    T2 = "89d4e2d5f19d2f2cd01a503d68eb57ea69ce4c640a1d58322aa8b6ab5d68b2
+          03ee58108d9bc818e754c22b0317ef36db"
+    domain = "279f17f14e7e3986bb71cf6c8a1018460596e62eea6ed91bb81b9706f4
+              729f95"
+
+    // random scalars
+    r1 = "517c6ba25814e7e8a6b1e1e7a1eaefbd13a47b874a249094592b51295c896b
+          e6"
+    r2 = "17d278dc4ff520d8bcde7c7f35e635c19d9d0e19e0f32e4900e4a69af300b2
+          f6"
+    e~ = "658838c65c01e42cd39fe21885284cef7006630bf8b8ab9183bcc2d212778d
+          ee"
+    r1~ = "21e2ce874aaef017a9d67f01e432cd16bcf2794299e6594f5065b417d0039
+           f42"
+    r3~ = "51a834a77851b6f5b476bd8ce9440019c0ba3b19a1739ae20e0834abca1fa
+           cd4"
+
+    // m_tilde_scalars
+    m~_1 = "586ad615bf1d62d511c8737ebb6a0492e0769faed21e1fb23cbbdf898b25
+            ad55"
+    m~_2 = "441e55f5927fb14f4059f4d4c7aad45b72349b50436cd8d2cd5ae3666ecd
+            64dd"
+    m~_3 = "10292482d9e08dc8d3a14223dfdbe4a14433ddfbff0950732a12f99edd78
+            efd9"
+    m~_4 = "1acd7900624f83027ee6c7700c579d10eaa0060dba6b9432247094971739
+            4645"
+    m~_5 = "4e525012cc1649cd7a6a4d3a16899e39b9d877243716e6212effb6320294
+            a382"
+    m~_6 = "65f2bf6e3dcde2dece63dd45ffcdecc8019f04664cb245f45ecdbc945e8a
+            4772"
+
+proof = "a6056ca76a8d342646fe509aff0a0a9a473d1dd9a740325dcbcb8c2391e27c4
+         1fae3560e68014c258847cdfb825ffbc08b4dd4f6dac26e245243e77e0450a9
+         f57b5c2a26201e628f477307e4b1ba46239b5b37789e805f4494f0a79eb58a4
+         175b1ced5d5f5b401169891c734feb00829f62d575131114d5deac4c293134f
+         ad7f9485497935db52da96694e61b4498634723fb71bbdfb3bcb922474dadc7
+         80ccf8370f601f2313e2e133e480a397d715c262ac48aa3a5ea18c8fbe37269
+         061ddeb5fea27583a19e8547468bf275785e5261d84cf2442fedf89ed8ab432
+         3f6e10e337521794e056ff7e9ca417da7b18f5319e99832031eb46f74215e52
+         0190995041738445b92e42cd44eea874a9101a47477745473d4d01e259183a8
+         b7211083d9dfa557c6ab12266982176fd94c0859d53eca062406ce741ac9ef2
+         9d79a4da7bad78208e70eefc7c1c5f01a862095c21450fdaa0b68bf5748c589
+         612721fd7b183b0514fa72afa0a814ac4838b50a4bb6486078f7c1f289951d3
+         e09f5970496a5d2d0cd3c92d2751f3b661bc0a7a9682441c2b29a667443cee0
+         cca618c0df1f763c2e7b5eb622c2ce72db1cabcbb055d45c33cee4b2b0e0849
+         38f8a44341dec62aa4e673c5c0b21dc30cc97a925a6dea"
 
 9.1.3.4.  Half Prover Committed Messages and Half Signer Messages
 
@@ -1605,7 +1869,7 @@ Mocked RNG parameters for the signature:
 Mocked RNG parameters for the proof:
     dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RAND
            OM_SCALARS_DST_"
-    count =  "11"
+    count =  "13"
 
 message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
              45f02"
@@ -1671,121 +1935,63 @@ signerBlind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0
   14: "96012096"
 }
 
-proof = "801081035c2ae5029190512f6c94396012e50a793f203706c381241ae9ebc9d
-         ff669dcf651f641a429618715a716fff6b486a482e117c0d75b0ed837b04d6d
-         435bb6c5c4d271c93a58afcbfd77a3c14e069f671fadc4c1372ac3df28d4847
-         6972e661b5ddabd120c07c38a244b69c4a0ec8969a8f3a78f528434bc324f25
-         ec74463654f7b33fc95588c00e53a9370c832e9516f003d35e111e72ca40c6a
-         d94df036c7fddfba0874831c03572d369ae08da9d0f79692639b2054d5860e4
-         a7ac6145b16c68ddda6087b572b9a328a20205da17ba6fe9efe24a15a21fcc1
-         4dec1c660f46a5daeac674dc5e55970301f1b87cc61d2af20848667a9b2f30a
-         257022d269831bb44c802a72ed970672fdba16e207bd3cb843bfd99279081ba
-         bf5a0c32b1d924cc04cfa9234a98de64a386ab709f51b278cd250a28fb5573d
-         6aa27713a53013e9261c59e532d9821e9dfbb27b6a204cd69cda2c8849faa20
-         9b19f076061433b455e3e86d4371eb52940c43848889f162b9a062ef416a7d9
-         8ce99943bd8c00a524c29b2942546cdb2e9eecdd1c0665d1e6dc13232909925
-         c2e9cd289aa3c0d852540b6b375fccf8e137786a646034fe849f627f08519ec
-         b395c17c5b74ee"
+Proof trace:
+    T1 = "a74374d7455d32209645a5e151c87315ec98cc5f6aa0427dc8a25f9efb5f3b
+          dcfa97bd59a6b503741ec7ed5b555ccc61"
+    T2 = "b79ddab7ec3fb0e0f6f0e8b63a741f433e90b29c1c77ec95547ca8859ab439
+          9e8104f89a5697ed230685bb24dd024593"
+    domain = "279f17f14e7e3986bb71cf6c8a1018460596e62eea6ed91bb81b9706f4
+              729f95"
+
+    // random scalars
+    r1 = "11ac0d86f78a0bcdc7c20417d73522b46d20a8f7e3ac008d2d3bd77730614b
+          34"
+    r2 = "2697d76e223bda4ed35e2428030bac7c2ca77122e3bab7b5d6b8bffca307a3
+          d3"
+    e~ = "0fc4a68d61483036dbf45878430cc8382283c481c8c1cd3c9d3fe9aec9263b
+          e3"
+    r1~ = "1baffa5c4d6187496310d4014bc9f15d0150f215868722186679b8e68d84b
+           682"
+    r3~ = "05b85a30f2f49348d34ca44242820c77421979b9b312a05b0fab16690026d
+           86a"
+
+    // m_tilde_scalars
+    m~_1 = "6f7e7893731097ba853486fea7eb62f66e3e14be47b0565b388c5a917013
+            5b86"
+    m~_2 = "45a4a12e1a7a518a63b66eebbce90605c29f249f570c85685bc0232c8011
+            fbf3"
+    m~_3 = "2ca1dd61fa58bc6670268750f5acdb19dbeca06ff2eb1a352d69e2131804
+            2772"
+    m~_4 = "0c79f4d9a6373202c102adf291522c06e2bf7f0da76f8e6cc3d6762bcc6b
+            ee1f"
+    m~_5 = "48f8c3fdcdde12d9949c6ba62661e5694363145f140be07d928b4ea9521a
+            838b"
+    m~_6 = "382d6baa8558a7cd49b2fb6ad333114d7d4842c1c29aa2fcb8d6159aa40e
+            84f2"
+    m~_7 = "53ae47dc3e329331a0cc2f46920d6f8b07f27afc4ad662ddad0e61d5e1b7
+            4751"
+    m~_8 = "6165660f8dde9349f501d169e463ddef10b94a248f2de5701966e65ba16b
+            656a"
+
+proof = "a96a052121e1f2782cfb286fa1652c18cf92bcf9d27da34c6e68e97ca750b4e
+         9acc1706e7e990c3c0cdef9b7127f7f4399112948cd46ff9cb8644bd7eef9a4
+         2fc3738685044dcc36a2e512eb6931df951616a73da6647ca972bd9d975eaeb
+         478915d70529fbddd042e0c355bef5854d05f0a6741acf8a92711baf1b62218
+         149df20f1eb98ba7f7f797697c8c33356db12c5765eb955a5aa9c9917148392
+         1abad20f0f12e327122e50fba43436094e7216ecb0208be6b8b9db6e87421e8
+         0950db0fd2f844d165279e1f3f474a23bc81d613508bcfab50307ac704073df
+         e2aca37bc6e56368b39147e4f58f3f837cac4b45512551eed47d3351751a689
+         1fb9f615c68218c4cc2e205032f29373efa4f12324283e8c4ab31787d478df1
+         e6754bb8eb60520a3b7b505669f964fa38db5262811a7bbffec086b03520c4b
+         ec622a59fd36adfb2f55188f221361eb50d5f01f8f71e2129d60fc1ac23cc1c
+         d44a607fd252d0e45610271c400a39932ffcf8be8f34975398e584f36e1152d
+         8e3f9422f3201b32a18cd13fe3871bdc5a81c557a0d2586592f0578714223aa
+         bd0bcfd975f55cfa4fdfb7418966654b91abff11ab96615e883ec30b4b632c3
+         a350cd69a8c6326cce61547267d6410757bfb323c0a0833ce279e939a7f381c
+         91738b3743b60b3800c1aba91e7e8d395539574f8e8301d459fbe79e7c51693
+         a959a1de996941a9fb8f3810452adc9221582092353902ca"
 
 9.1.3.5.  No Prover Committed Messages and Half Signer Messages
-          Disclosed
-
-Mocked RNG parameters for commitment:
-    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RAN
-           DOM_SCALARS_DST_"
-    count =  "7"
-
-Mocked RNG parameters for the signature:
-    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_
-           RANDOM_SCALARS_DST_"
-    count =  "1"
-
-Mocked RNG parameters for the proof:
-    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RAND
-           OM_SCALARS_DST_"
-    count =  "14"
-
-message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
-             45f02"
-message_2 = "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075
-             f9b80"
-message_3 = "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
-message_4 = "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
-message_5 = "496694774c5604ab1b2544eababcf0f53278ff50"
-message_6 = "515ae153e22aae04ad16f759e07237b4"
-message_7 = "d183ddc6e2665aa4e2f088af"
-message_8 = "ac55fb33a75909ed"
-message_9 = "96012096"
-message_10 = ""
-
-committed_message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310
-                       a1debdda4a45f02"
-committed_message_2 = "089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debd
-                       da4a45f02"
-committed_message_3 = "7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f0
-                       2"
-committed_message_4 = "fac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
-committed_message_5 = ""
-
-commitment_with_proof = "a90a9c986623c7df72f1b55f885a7f25070d5b73178f713
-                         9fd6e948067e9f748b1cc0d4db3cbb9123a18851714ec9c
-                         161b678690dbd0ae67f4bac061bb80824ba208906d58158
-                         6971c6a32e2a162eddf0ed4a8cc260f2cc9b505fd5ea078
-                         d21ae76159866c476cb129ad719511edbac763ec9b34c79
-                         43c520f598bacd7775e8345a9b3c2c2490fab27c97f1529
-                         ff319b4995ea15ff5e46ec26347d6a6bbf2e4b2a8da145f
-                         6afd5444464d86f79cd7df32fcc665b9245e138c752decf
-                         b3d507f2024af86b202741bf946e199ac77730a070821d7
-                         df69ce563d2d4142572431047dc6b544e4a8280ada8c3c0
-                         1a2d3f454e4cf1dc293f09e6a5b743f275286ce601f28b1
-                         838441265c1c18b4425b8bd3d5c"
-
-PK = "92d37d1d6cd38fea3a873953333eab23a4c0377e3e049974eb62bd45949cdeb18f
-      b0490edcd4429adff56e65cbce42cf188b31bddbd619e419b99c2c41b38179eb00
-      1963bc3decaae0d9f702c7a8c004f207f46c734a5eae2e8e82833f3e7ea5"
-signature = "95ef34d43451fe55d3887c7d32955641dbd13814db0d5d55e63fee1f0d8
-             e2bf5601924eb4e5015e895b5affe96f96d274bfcd2c2c902883cb210f2
-             bfca6b6c50b8e6768cda43000e6db777e2e0961fd9"
-
-header = "11223344556677889900aabbccddeeff"
-ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
-
-disclosed_indexes = "[ 0, 2, 4, 6, 8 ]"
-disclosed_commitment_indexes = "[  ]"
-
-proverBlind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f8fcb1525
-               c93b649"
-signerBlind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0
-               a1e3c7f"
-
-(disclosed_msgs, disclosed_idxs) = {
-   6: "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
-   8: "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
-  10: "496694774c5604ab1b2544eababcf0f53278ff50"
-  12: "d183ddc6e2665aa4e2f088af"
-  14: "96012096"
-}
-
-proof = "a4a41dcda917800e116d3013afdf335320fbc8d40e65642ae0314d17e7ac936
-         f5145e86cf335033443da3b75171f412aa8c5c903884d15025eebad608509c5
-         12e76646b6fb94fdfb93922431bde4ed1a3c2d9e97c669b846c67f7eb1bf76e
-         5194e0a9cb59d1b9e32aaa873976ce8f4bac3ee7044754222a3c61b4be1eca2
-         510227e0e2fb94bd2cd72dd6bc06d77c9ac9e631e08678c09a459c7819c37b7
-         4f0ac5ad82864baf843f7d613001a22bb324395276b87b05cebaacf225973dc
-         b56b7537b90360b18aba3c8537a40bacec94dc80317462d13eb9dd1e9c4a9d6
-         8198f1e0ace4c2d0cc91f5d5968b730fcd28c8e816961753d5fa339d1d64b7c
-         9fc6535c6fcacaa07ebda7d037905eec32b945153f13765cf3c716d28776359
-         3127875d517bc3dacb112dac7de23cd7ba220e5ea917e3d8a54400045c86680
-         b0b50f49935aa25ecbfc5d5f0cb23149f20aa51fd209cb710d284a37b17b0f3
-         7b5031f849e68092da000b7513ebebddc3b22bcd0bc5a13b8f8b32126e47e80
-         3379907076ad1be3b36a0fe34d902350ddb0245f594585ccc0aee13e23e596b
-         69fe031cd9911114e6ac983f133c961b1e63ce5f2b4e9f672f34df151439952
-         fff82e130811583909255f4085deab9348866ff7085a5d3223268da65c56146
-         8d65f3f80825cb54994c38e2eb066fdba1d86d552bc7196f9eb4ccc45e051b8
-         9d5863a06858c9a93389e5eb8d5c88aac63c6372fb5920dc8aefb6246d7ac06
-         8dad172b82fa949f0"
-
-9.1.3.6.  Half Prover Committed Messages and No Signer Messages
           Disclosed
 
 Mocked RNG parameters for commitment:
@@ -1848,6 +2054,150 @@ signature = "95ef34d43451fe55d3887c7d32955641dbd13814db0d5d55e63fee1f0d8
 header = "11223344556677889900aabbccddeeff"
 ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
 
+disclosed_indexes = "[ 0, 2, 4, 6, 8 ]"
+disclosed_commitment_indexes = "[  ]"
+
+proverBlind = "41fb2f74c30256398c927a262602b5ac3ebc6f84d9169476f8fcb1525
+               c93b649"
+signerBlind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0
+               a1e3c7f"
+
+(disclosed_msgs, disclosed_idxs) = {
+   6: "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
+   8: "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
+  10: "496694774c5604ab1b2544eababcf0f53278ff50"
+  12: "d183ddc6e2665aa4e2f088af"
+  14: "96012096"
+}
+
+Proof trace:
+    T1 = "97653c8db8622f9e682acaa8b47f33aeb77325883d64c628e1e434375286c0
+          df961514bb77651d32cc5572591f9a67c4"
+    T2 = "97d3a42ec1606394a72c334560af477bed3b1de11b59a94a7488c6fa87cf61
+          c439d59f2de1a38b806daf7993c145fa7d"
+    domain = "279f17f14e7e3986bb71cf6c8a1018460596e62eea6ed91bb81b9706f4
+              729f95"
+
+    // random scalars
+    r1 = "211c1037bcd1316e4160817643c34a7bbb83021ddd3b1f22f37ed5253da52e
+          25"
+    r2 = "6ca3bb81e84cd13823f2630f90f28084d1409bca3d08983d9901f290450ef5
+          2e"
+    e~ = "2a37d3d049c506148362bb3411255f08bd504553caf90b877569b7250ca7f9
+          8c"
+    r1~ = "3427333b9226659b999a422946edc23b382d9a355ac03ec8dc45ed57cbe56
+           bc4"
+    r3~ = "633a0ef2d7d6a96a6d273e6984d0dc3a4d8a619fad2be125dd3e4237bfe2e
+           53a"
+
+    // m_tilde_scalars
+    m~_1 = "5f2b419df907cc204177fb0f60a8865cafc792fec2a5eee336146ad811cb
+            d483"
+    m~_2 = "03c340104c6b71dd62b77ed31d2b4863e9a6925cb9b78666a0b8c400c4ca
+            31f8"
+    m~_3 = "45f9d520e8682e349a036b8763fd647d2a1cbb81a77f61da5879d563948c
+            ffe4"
+    m~_4 = "4010f0d66857c907ebb8f7544e04ff1ba4bdc2baa19f63b4a146f5ccc385
+            3544"
+    m~_5 = "4ca37c03d4ab19de664f57d18874d7b86434cff1389cf9865506bcc49f63
+            b4f8"
+    m~_6 = "47965b117a3d83c8133a1f915f858c0b4e1f3d648af84dadbf722696ab0d
+            62f2"
+    m~_7 = "68bbcf9066fd79d6224a0a8d289bc38cc7768bca389779edfa29b0fe874b
+            2645"
+    m~_8 = "6185e602029fe3df6f0023323d20d33c67e8e0093e4d603e00506869aa2f
+            a57c"
+    m~_9 = "47f3355d90deaa185a76e02fc2bb521714682686569e36f016f5161babdc
+            3006"
+    m~_10 = "461a8b4fc326abf2bc18c43df883fd512d460419c4ee361a45714d8466b
+             5750f"
+    m~_11 = "4da6a68e742b02785c398f1693b856908138fa2376c03546ab2b4168853
+             c255b"
+
+proof = "a46cea8d9d0f919fdc86ca3dd1ac8b2a3e2378e284ba821202cd8de28d07cf9
+         61025b3e40ea6c04a8b40ce24254638c283966b37e6d484324d664fd4b7a090
+         2e6183f0785933d6a169a9a2317d36f5e46eaceb1ea1aa8217a8814e1710988
+         0758e42a7ec9ce182a1cdfcc25f77e5731ef62538316488e74783bbd4b2fb96
+         70da9d65b56385bb5386795529447e0263f331fc893fd155f22d61152e20d3b
+         61ff16b31db1e9061022f6571a677cb0bccb56d0bb7df15cbc1bfdcb0960357
+         66d120fdeff44b253cf5eca13727e1e022b0a37120ab12381a0870d890d682d
+         ea4a4dba263cb80f19cb993febcf53865709548728d35b5e7ee27e55ee188d6
+         e8d17a3c846f9e1c56ed42e9af450d73e7ef3826411062fd0fd2496acd5961e
+         d94136691d8782f534201c741bc4d56317825222013638dce35ab399da8f2f5
+         bc0a40e43a79348483d7d1b92b95277687ea25a53f17c3fca6cb30ac6d0e711
+         c89c36f2a6034d6a2a12124e6743c88da53fa46483c37672c7161cf6273bd0f
+         d2c1226f5b96a8e5572b4b7974edd4182a96708a01a05eeae79b84cf79bed7b
+         01c22a32a2ad38fe92cb8eca55cec5d75f9ee876a2c0f2982f0a47bbfabd686
+         27892687bb87a5f7bbcb2819d4439f93439e2aa1191a5643ed031197c66bcc1
+         beb5d9dc1fb24f5f452c3f97900bd42194f198c62b8caa54173dd5a76260ae4
+         1c4aca2cca8430874e575cbba47d718300f0ef7bc4676553508938f9e4cab05
+         889a7948f364a91c351f3796f5bfa8bc36cd46d040823c33164fb33187ebcf8
+         6f20af8ba7d75cf558c302e977d86d4485492f14c06198ee784a9510fe499cf
+         516bd1c96e0ad60a5ad07fd5bdcdcb97a1bcec2ab951a56eff6"
+
+9.1.3.6.  Half Prover Committed Messages and No Signer Messages
+          Disclosed
+
+Mocked RNG parameters for commitment:
+    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RAN
+           DOM_SCALARS_DST_"
+    count =  "7"
+
+Mocked RNG parameters for the signature:
+    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_
+           RANDOM_SCALARS_DST_"
+    count =  "1"
+
+Mocked RNG parameters for the proof:
+    dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RAND
+           OM_SCALARS_DST_"
+    count =  "18"
+
+message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
+             45f02"
+message_2 = "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075
+             f9b80"
+message_3 = "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
+message_4 = "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
+message_5 = "496694774c5604ab1b2544eababcf0f53278ff50"
+message_6 = "515ae153e22aae04ad16f759e07237b4"
+message_7 = "d183ddc6e2665aa4e2f088af"
+message_8 = "ac55fb33a75909ed"
+message_9 = "96012096"
+message_10 = ""
+
+committed_message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310
+                       a1debdda4a45f02"
+committed_message_2 = "089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debd
+                       da4a45f02"
+committed_message_3 = "7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f0
+                       2"
+committed_message_4 = "fac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
+committed_message_5 = ""
+
+commitment_with_proof = "a90a9c986623c7df72f1b55f885a7f25070d5b73178f713
+                         9fd6e948067e9f748b1cc0d4db3cbb9123a18851714ec9c
+                         161b678690dbd0ae67f4bac061bb80824ba208906d58158
+                         6971c6a32e2a162eddf0ed4a8cc260f2cc9b505fd5ea078
+                         d21ae76159866c476cb129ad719511edbac763ec9b34c79
+                         43c520f598bacd7775e8345a9b3c2c2490fab27c97f1529
+                         ff319b4995ea15ff5e46ec26347d6a6bbf2e4b2a8da145f
+                         6afd5444464d86f79cd7df32fcc665b9245e138c752decf
+                         b3d507f2024af86b202741bf946e199ac77730a070821d7
+                         df69ce563d2d4142572431047dc6b544e4a8280ada8c3c0
+                         1a2d3f454e4cf1dc293f09e6a5b743f275286ce601f28b1
+                         838441265c1c18b4425b8bd3d5c"
+
+PK = "92d37d1d6cd38fea3a873953333eab23a4c0377e3e049974eb62bd45949cdeb18f
+      b0490edcd4429adff56e65cbce42cf188b31bddbd619e419b99c2c41b38179eb00
+      1963bc3decaae0d9f702c7a8c004f207f46c734a5eae2e8e82833f3e7ea5"
+signature = "95ef34d43451fe55d3887c7d32955641dbd13814db0d5d55e63fee1f0d8
+             e2bf5601924eb4e5015e895b5affe96f96d274bfcd2c2c902883cb210f2
+             bfca6b6c50b8e6768cda43000e6db777e2e0961fd9"
+
+header = "11223344556677889900aabbccddeeff"
+ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
+
 disclosed_indexes = "[  ]"
 disclosed_commitment_indexes = "[ 0, 2, 4 ]"
 
@@ -1862,26 +2212,76 @@ signerBlind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0
    5: ""
 }
 
-proof = "ab3dd166e0b49168ceff1118bdceb063fd547bf5a425a218de2dfd6afe6bafd
-         8674964a4ab0154f40f21f0e9bdeb6d598ea0531bf72c7e81d22b3c5e10999f
-         84582f96fe710227cc2a1a4174ed1fccbb5882e7a922c20880bd8358fd75002
-         4433c9ae1cee694532af6238530b5d9802c94cf4f01ef08c69762e3baa4a702
-         099f0b192140bad0c46a76f3a1307082af54e27de113045f314a99a58cf4ab0
-         d3b8753fdc310c95449ce016dbd558e2d9ab31cd235e5c716af08f67964899a
-         7b10b74a6ad84a7457e115eb8e64725f640c506c541672a2be7beb2974fa838
-         514efd204ab384172b8b2073bedd60c7467453b073e872a11eb2ecf0498ba39
-         1020da180e157a0ec99a7309ee0b697f6350ccc504d225d6241c773e9f42831
-         2f976370d3d3344cb50c4d64ab6a50984f0b7c590ee9e2074f5c81dcfa44580
-         ef69bb8b453e8ed1c176561a134c3d6805527a31cde67a7cfcbc9b3dd792dd2
-         ed71f2cba69542ca997acce32eb3b5908ae4ec60785c79be68d1ef81ca01e08
-         755c79071448569634c77b1b2c757c2c1cfd2bd552040d134f1781505962e45
-         20782fbef9ad648b37d64bc367876b5e5ee458c4df4ad5f65b2a69ebafb617b
-         d52270263b029d020e510c63d1d6085eeea53230dd6de647e32afb233074f38
-         eb5bc749d14ef0624c4d4d3cda3bad47f6b30944a0bf4e9ae7aee7b53d5449a
-         37cf58103770fc825accf49b634cec637982b5dbf263f3c33a007c82dc60735
-         49ab186d7a8215a730bed446fa6345d84345489848397239c37de0a5802d5d2
-         7523571ad1a9b62d1e6b1cb35bb5c25219fd452ce7a9cbafb5e1fa441e92dce
-         2dc450740b1d0195e88"
+Proof trace:
+    T1 = "b2a0a9b2349b2f5c8cf2cc9a49b21fb6e904a42499f576b81e76abe82d21ef
+          6591525a43bc83a4186d493e84259d926e"
+    T2 = "9501f821a461b6374c58c316875c4bb535e566c3b57bf776a77603510e466e
+          05380daccb13c3f085c03f5f4740211e06"
+    domain = "279f17f14e7e3986bb71cf6c8a1018460596e62eea6ed91bb81b9706f4
+              729f95"
+
+    // random scalars
+    r1 = "72202656d242b95e869fbcd40581b1924183ac11ac323ebbe011d63536d828
+          7c"
+    r2 = "1b6f80e77f00fd46a7ab1e46be33db2582fbadbf8358e7dfb157c69f577b90
+          63"
+    e~ = "48e116be2272e66dac308ec305869640dcc107d3de941659e7dfa80359a3a3
+          3d"
+    r1~ = "67dbca3425cd03873b9ef9240389de348618c4eb142eb963f03e99f5cc857
+           55f"
+    r3~ = "38beeb508bc526d9f70af680eb5e747daf0b0abf9c5dd2da78a795eb082c8
+           91e"
+
+    // m_tilde_scalars
+    m~_1 = "41e0af39eb876d842a6fa22e739bd8557782d8bc64f1e3e8caa407acf21e
+            9d83"
+    m~_2 = "34318199184c1d1b0088b30f12b59b5be5eaf0a6d4f1bd06cae1844ce794
+            93db"
+    m~_3 = "449a1a27becc25364804695002bb8671d66119c6b47ca0090a42690f108b
+            8743"
+    m~_4 = "0db0eb8b857927356955a1e251ad1df40e45427e8dd488b822608565a62a
+            5a31"
+    m~_6 = "21e0abb919758a5b8bfd32cc6417b36ca94d091a4ef4b6e9e6840a174ed1
+            93d4"
+    m~_5 = "3030cf9de98a457fdfe9cfbe693e53a2eefbe6590557b04bc5abcc981b2c
+            5b53"
+    m~_8 = "38af70a2dc939db80ec191f993d38ce477fbf53f0de85c8676e0bd32fb65
+            29b9"
+    m~_7 = "6d46722a4f82d87d5012bab944b18239571c6c20b7133b529d0cd8199925
+            1eee"
+    m~_9 = "39c92b70c8e3635a623da5dfeccb3b2a706e8179f1c94c5185f8cf3a4147
+            f0e4"
+    m~_10 = "1521952789a9f1a2c8e88d102574fc3b11644dcd57e4658bcf37f44ba57
+             5a69f"
+    m~_11 = "5ecc4872b50ac3e9159dc3eef11260766090788a864607e669c50ebc489
+             d5a75"
+    m~_12 = "68c917c66ecd829f333f0f9b12fcaf0c93e6f085fbb0d490e1e1a43ba59
+             d6a94"
+    m~_13 = "60f3ae300246e53d20ec89d0bce7f4ea8bb2f669f9b972f5e475401ab9a
+             44ad1"
+
+proof = "b5b84e7a44fe9c864d7aefa086af221b5635c08c91e07d51c735dec90b13a7b
+         8377083f3fd726d22eafe2dcb89cc02b192a874481a1aa7858118cdbd7c7cba
+         094f761cbe28f4b81c8cda6dc04cf4c4cfff481b29fc2443cb1c7ce94958de6
+         a5097a3e15b348fb6bb89db4ce5a54281163f71e2dd5cf7b09e1d1b0474c54a
+         c24f108293cabf24d6d3c85ffaae51cb28d322018c6f816001ad881c8922465
+         67d9e80bfbc94e2bb706654029572d10ab58f408f459c2b3d626f211b9af6cf
+         6dff3b1bdf9c3e9258a8d79b447e30836c6f3a10c4ff96e5229acfc0c01be5e
+         c60cffcd9b183eb27e167f7ef55c116af163f64203d8a812616a47533d0142c
+         1fc156f253c198bd2fb31c024c24cf963b4ef8a72685c0e60fcae9a384482cf
+         76b2bdb32cfff3e0397ee4574fda20335e7cc21b56ca46db97020bdae7f9e1e
+         3f95b1ec0a1604eccf9d1140f07229bd1ad40db6d9504e94bc801457ddbc77a
+         0f1c2f13896e54ab4e8542b9cbecdfc75733e8e413d6b3532148349e478219b
+         f096ed7dad49ea049d0ffe8209646fb44401a64bf8d003462f2c93cf3a18e56
+         063884e502c450c81c0b838b4d4642928aa741948d19b727188c92eac364259
+         9da6c50becce73fe3d8560750e988ebd8565fd4067074739f226c9e85da6f57
+         eb672f7bf83a2961d15b93a61a1dcf1eae7fc98968964880dc0978753deac2e
+         745089fa56ba89790594f011e344d0e7b9803395d3a98f916c87ab9346a6dfb
+         424a0e7280db4f7ddaecd99d87a2aa59e68afcca68cac2fa516166185a9c59f
+         f1d664ef99c4454da865859284b33165bc7037f830ac61e5db0263a4387c441
+         e92b0b3c9dd38014873d56d665bbba00c11c623634cbb17338822213b5463ec
+         9b15ec5e2f3660d5aeac334e54760bb158ae41d9ce2e5b3d9d6c368b52247b5
+         6ced2bbda18ed9649715e1f28d013d277c9f8d55e647544e03a5d"
 
 9.1.3.7.  No Prover Committed Messages and No Signer Messages Disclosed
 
@@ -1898,7 +2298,7 @@ Mocked RNG parameters for the signature:
 Mocked RNG parameters for the proof:
     dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RAND
            OM_SCALARS_DST_"
-    count =  "19"
+    count =  "21"
 
 message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
              45f02"
@@ -1956,29 +2356,85 @@ signerBlind = "49541deb67dc42d5509d39548637959bc43e105fff02c780a308c78e0
 (disclosed_msgs, disclosed_idxs) = {
 }
 
-proof = "996db0097416f2ebb2c1ef5eab8c428fb86a6befb4cf910efd446e7d20d3dce
-         9318e096c3cec92cb151a707395bb682394dcf717fbf766c48389414a572a94
-         0ef0dcf06ec99ab990185cc971b86dfb1ee10241728a05f2d58a86bc0ebe5de
-         c4054b2244d4ea1f1b85e61405cb17d012451bfc29e4e5e1f144d8c9181bbfc
-         4f1d4b22a482cc95b787e348aba321266b530e1d47fb7a35659fe07a6f396e3
-         f22ef28e09707a7265782c938c84dac7a000bed889e78479c17904b164fbfc1
-         b749543ef4a54c98430600e69ea3016a48fcebac5a2c6bdeae55c3e87133c75
-         362ff05044752aa4658af786620a30b18e04457c47422b2b94dcf3e0127b846
-         76bb28260a70d6d2c74edfc0eb5ebfe1b7d5d54088affb6cf2cf9a67efcd4de
-         70b5e16f6278e75cf08443f2e57ed0b6fa35d59f92621088630cf7aa31f1b3f
-         cdb640fe7a496ad24094aec8ff721d583a074607e7091027e3066d535f2203e
-         8211d7195fd4eb03e1b0596f39a332e1df63f919f75892908c849e39bd871b9
-         7d660f65db0f576dd467a9cad177da05c161edc56ae38e1bbfabb597cb6fc0a
-         f06383aa6c4f25e21fc31fcbfaa4d8b4554bdb301f7367dd6e53ac8f93a72b9
-         3e37e9a20836f8620e85e01a614fa557ba9db7719428be958867849b31ec395
-         7d09e392f4b98ad114e6e476855c1ee4b63feb1ae3a9fda2afb3ce963cfcaa4
-         faae0800a9344ed81960f02d19c9ed95956615a5142c53bba44f94506b268e1
-         9de27b1e75f4fb18912aee93375a001d868caf1de942595a58cd9bbf8e6cfca
-         0adabba47db65721b93545877774130ab8fa2984f928e599d56e0f5934de4d4
-         b7f1cd5631773a720913c87d9777c7fae06de2d9d607682a4e944242efe4a89
-         07ec63d9d529f8f546af2ac33b7d358f5ca0b58a9fbb42356d9629930586e84
-         e2de6522672a3035bd2da27e5f2bec16be907c1a43c4a0e20d09ef302d182ff
-         80b12d5dd3aafa8d5bb222"
+Proof trace:
+    T1 = "80006e495e8293da2a6f5451548e593623e5988da761bdf8c0be7530387e01
+          29a0fbf757f78e146a85f651b03958bcb3"
+    T2 = "b8cd62c9ba796c99037d951360a5217fc137cfef4bf43585defeb718b4fe35
+          0d8edc445d309cdbdb99985efa681d3b4a"
+    domain = "279f17f14e7e3986bb71cf6c8a1018460596e62eea6ed91bb81b9706f4
+              729f95"
+
+    // random scalars
+    r1 = "2aa67d3759b3aa6cdc1e57822f10e4ac850a7f80a82f0967cd5fd21899ca0b
+          69"
+    r2 = "1e946e0a41c6a6dcc24894f477899f060f0f6bbe5b913022848d39e356d83c
+          f1"
+    e~ = "6d6c354149a71ca3c43e5657fee3b95652c5978125350c6d317cebc9fb8829
+          2a"
+    r1~ = "2508a44ef5e20176698f111e2375bfa84661ee27189c300bde8b9d946ceb5
+           8d7"
+    r3~ = "35632248dc2eea031c09ae0797e1b9974d675d60df32035a5fde566ff71dd
+           247"
+
+    // m_tilde_scalars
+    m~_1 = "26f66a47894e184b5fe32a2e6568c0786af376d089e2a11e632978c183a6
+            f3fb"
+    m~_2 = "6d3606b3086f0c44c209c5af201d48d20e015f0fc80fd00a10259f7f46ea
+            6eed"
+    m~_3 = "22063ed43999f4ae40a03c4ea9f934b3f946dc167957b20d501a13442669
+            5cc0"
+    m~_4 = "29930e487c3e109322d0f2e097616ece04d87d91649dff92bda1dc438400
+            256f"
+    m~_5 = "4b0cff28fe171b5179977f6bed33413ba420e0656e468a579a7fdac983d2
+            4314"
+    m~_6 = "6451fce17b93ed5dbf4d2aafbbd6afaa18e6f222046ac31ed2dc1d6df9a3
+            3291"
+    m~_7 = "1f9c3ab790fbad9b71f74783969fb01a14fc7e1f417a38696b0430a77b68
+            fe94"
+    m~_8 = "480b325408ff54ddd292d3c3ce8253c540cc8c32ef42308389bc9543c471
+            c2da"
+    m~_9 = "5e02607fbd4d0af561e61c377e2b31c2ae1c589ba835f93bd7be3814f65e
+            a450"
+    m~_10 = "6849cc6bf9367386c4189859998d9c4993c84488f9b03d311c197499dda
+             1ee0c"
+    m~_11 = "51b9c711f25213b6a63a9ae2ade5b0d517539992c40bb45297d0709b216
+             db36e"
+    m~_12 = "6be3bcea66b6872421a2572b0c37cfdd0541d226a18fefdd60619217554
+             eb08d"
+    m~_13 = "48fd2d36c9e119fba1ad5f5fef059838c7b0150f7a4088919ed9bf6934f
+             7c90b"
+    m~_14 = "2c7589a2b29e0be25b1f592ecb84d072fb17659c4bfc6dfc54dba002623
+             f5a0c"
+    m~_15 = "55976175ecac1373e3e27ed645de08514e66d50600363a6de6e791f3358
+             b06f2"
+    m~_16 = "5a4d330bd5d5fe02528f8c3b2a7d3dcc223d11452f2f772e95cc36b74fc
+             4c60c"
+
+proof = "8de2b23c71d0cd0a2b1088ac05eca3956789465b81288f6a3d0597c9ca60b9d
+         029f9e0871d8caa23e781752dcaa05a7f8c4b2766be6b4013b8498242faa483
+         7f7a1a34f3642d8bb8424a5061421086846a247eeca1c00c623637f1af27f7c
+         ba98b282bdf73f94a2e53cd43d1376756a20a97fb727425bf897ba06d71c9ce
+         347a5b581bd280ed5b9b7940a4bd995722c6685489e5eda2ef3961bc2cf6644
+         f4258de9eba437b25a6341255d781c0dbcf3a24fac5113dcc696b1ea6b3c2a4
+         26d1d590312e41656919c66f5d7cfd98ce51106ddff816070342682ac54f3cd
+         eacadf240c0f206fa34cc7f7ffa6247b62bf50e10a7ac678058fd00edb68cd7
+         140d07f336cf10ef0cea7ba6518dc909873edb376e4fe0e9f45945c965096c3
+         3a7e5d83584554053fa3182aa24ae6206eb6f29052a3e49d3c26c89a61ef596
+         a133fd9656ec0de0e6f01cdba4cc97ca75ccb1453714de703017cc020493b5b
+         136effd04fd67050b06cb02efe6440a86d041ab59b46480c960ec0fade14a07
+         dcebc84a1364aa50bc8060417cb5217485284b25e19b3026fdf907c9d58a986
+         a3495f22773acbb1d02d0ce686acd47191c220dff271424077a3dc963abf2ce
+         c87a2fd380283df0167083493f1e9403c3d063fda6f6e12ddae5d61a7869a2a
+         d0b334cc1d6de7725f027218b8b4cea653dbf11ad253cce670067192d32dba2
+         a09f17149806b8fadc523a20d3004f3065bccc2291fd5c01147168ea88816c7
+         d808358048937b160cdf6c83e837acf1955bb4c313c58eb393ce52e26c5a2c0
+         6f3daf40140906f47fc8bb964b45273b359ee0428c3eaa85c46c2a2a3c48c19
+         55ed949a2774c7b4b95ddff6fc70ed20bed5cf86a9bdc4ff7712f5cef5d276d
+         c0198ce4f46e2cc5aec156916e09d1f9f7994f34e8a3b018dc6b685d2925fee
+         720c82d890bcf02626230e04fd15e54e019992173f1bc22c8832952dffa7f1f
+         bfa1efd370e6b69d822ac4dc12737392079d9dea2a3d7dc954a0c9262234236
+         20be62f2bac962160ce01cec47321f3f92d1edd0a09356b6420ba8f2ade300c
+         cd65d135eb140e629d65ec2116260c76eec6bf46af46c07768e50ea9"
 
 9.1.3.8.  No Commitment and Half Signer Messages Disclosed
 
@@ -1990,7 +2446,7 @@ Mocked RNG parameters for the signature:
 Mocked RNG parameters for the proof:
     dst = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RAND
            OM_SCALARS_DST_"
-    count =  "9"
+    count =  "11"
 
 message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
              45f02"
@@ -2040,18 +2496,52 @@ signerBlind = "null"
    8: "96012096"
 }
 
-proof = "b014434d68b7c7022ea63c444c26bfe8430a799ad9d9c98c82187f804bc8a96
-         5360c2bb4adb3c2ad6803155b0e1fc964b46d496d2f938e2c9cba797a833fc3
-         a339cba7869343ef9a256ff4a2a3d9cabd71361e0ffa7fa2af46018f2df1066
-         99851f06220c14dd607d112ece8e493747c2dc46e7610cf6bd5c0e507ba3874
-         4cda69fcdc97a8fb96e0972fe4943cce16ab5f9875757c9d706df8a7c462a8d
-         300374337ed4af552fcfb29f5b7caa70549ade4250e8d66eb201f1bf4afe4a9
-         d4f1b50963d5a68c1055c49bb117121980f62e9a219d366b273a6524c4315c3
-         ade213a3171f323c9d868375bafad5178bacad0f13761b12c47c7a0a25ddb7a
-         0b614b1b285cc3520554636db8d627041a48e6a95db09e9944347504abbe7df
-         009f837254c2e97b72f265344ab639c3d14c639d7a49da38b94d0b764df7f84
-         ff49893eb006d7d009b08be8351ae5e614a6bcd6f86c09ef55d534b463a5a17
-         147d5509f11"
+Proof trace:
+    T1 = "a16e8bfa6283d39547678e9d02ac67ce786b6f322e6417b6d53b1609ee11e9
+          c037b9da87048824c9e5647832b7f917bc"
+    T2 = "af8fdc785001adf4baf4513baf913a158409172ece061c6e452d0f97f556b8
+          10aa8710e9cb2431d993084809e3af62bd"
+    domain = "4e6f04eeb36ed65d8f088e7adf6c106c0db79527243ce19389514b389a
+              cf7adf"
+
+    // random scalars
+    r1 = "517c6ba25814e7e8a6b1e1e7a1eaefbd13a47b874a249094592b51295c896b
+          e6"
+    r2 = "17d278dc4ff520d8bcde7c7f35e635c19d9d0e19e0f32e4900e4a69af300b2
+          f6"
+    e~ = "658838c65c01e42cd39fe21885284cef7006630bf8b8ab9183bcc2d212778d
+          ee"
+    r1~ = "21e2ce874aaef017a9d67f01e432cd16bcf2794299e6594f5065b417d0039
+           f42"
+    r3~ = "51a834a77851b6f5b476bd8ce9440019c0ba3b19a1739ae20e0834abca1fa
+           cd4"
+
+    // m_tilde_scalars
+    m~_1 = "586ad615bf1d62d511c8737ebb6a0492e0769faed21e1fb23cbbdf898b25
+            ad55"
+    m~_2 = "441e55f5927fb14f4059f4d4c7aad45b72349b50436cd8d2cd5ae3666ecd
+            64dd"
+    m~_3 = "10292482d9e08dc8d3a14223dfdbe4a14433ddfbff0950732a12f99edd78
+            efd9"
+    m~_4 = "1acd7900624f83027ee6c7700c579d10eaa0060dba6b9432247094971739
+            4645"
+    m~_5 = "4e525012cc1649cd7a6a4d3a16899e39b9d877243716e6212effb6320294
+            a382"
+
+proof = "8fa620d86d48ae44e658bfc2b414fad0e6f1333e3a852eb455b38144760850d
+         81b828d55aa7d010090e411a448fad299b484d2871adfce8c62d35c262729e6
+         02751006905d9a3e34b4862fb4761a3795e16229f4993da7beef62560ab960d
+         96c88ea4ab174786e16359f47da8f036ced2e839781a1fa809917284b334efd
+         3f8b4efd24dc20082f2e6dde9efb4581a42a19299171a5818d227a190727fb6
+         2a05a7038497dd2ec00013c5e3b7b7d2546f62331a9700dfa311dcffaca4484
+         c9f36156ab2e13871b7b8285fec34c1766cc49419709dde4e65a92bdd5c79b0
+         0d3c2751932695a52a213704f9c91b20341c73a5035fbc008bcb92ef75aae3e
+         7879c562c2185da089fd17a6ce8c005c85d3f22f66304286cc954b89d3a1afc
+         4d25e77ef1e9f8759582874e84e312b875523a66150e15ef4092933436e65c8
+         365cb375e5e1c03cf418576080c66ad936faef3b170ebd1e30068c7e98f5067
+         8083f328ebe4a30ee5974130e931e87474b006b7900632bb71522ff387d8325
+         3ddc8247502eef23db0959970bab30b62ffafe36e5bd5a8a07acfe29f665af2
+         1240f7833e5a7ed093c25e8a00a22c35a151d7a9af838"
 
 9.2.  BLS12-381-SHA-256 Test Vectors
 
@@ -2065,8 +2555,8 @@ Mocked RNG parameters:
     count =  "2"
 
 committed_messages = "[  ]"
-prover_blind = "1b6f406b17aaf92dc7deb911c7cae49756a6623b5c385b5ae6214d7e
-                3d9597f7"
+secret_prover_blind = "1b6f406b17aaf92dc7deb911c7cae49756a6623b5c385b5ae
+                       6214d7e3d9597f7"
 commitment_with_proof = "8bd94b05cd4e006145bc974cf5cdcc80e544a8c4624b0a7
                          f6a5509430c79be788be86536b725ea93dd0a035b4ef822
                          631dc4e8c1a02cc212cc9f914ecfab3470901d5d1573e4d
@@ -2087,8 +2577,8 @@ committed_message_3 = "835889a40744813a892eff9deb1edaeb"
 committed_message_4 = "e1ca9729410dc6ba"
 committed_message_5 = ""
 
-prover_blind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20249afb4
-                abd37589"
+secret_prover_blind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20
+                       249afb4abd37589"
 commitment_with_proof = "8707ce71651e7fadbdd39cd88e83255629aacd969186eae
                          fe95ea27935ab54af325220bb410af7f4389f85adc63054
                          8a02ff284a86147a4fc93da14be0c8f2c8df53b0057f71a
@@ -2109,7 +2599,7 @@ commitment_with_proof = "8707ce71651e7fadbdd39cd88e83255629aacd969186eae
 Mocked RNG parameters for commitment:
     dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDO
            M_SCALARS_DST_"
-    count =  "3"
+    count =  "2"
 
 Mocked RNG parameters for the signature:
     dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_RA
@@ -2121,26 +2611,31 @@ PK = "a820f230f6ae38503b86c70dc50b61c58a77e45c39ab25c0652bbaa8fa136f2851
       bd4781c9dcde39fc9d1d52c9e60268061e7d7632171d91aa8d460acee0e96f1e7c
       4cfb12d3ff9ab5d5dc91c277db75c845d649ef3c4f63aebc364cd55ded0c"
 
-commitment_with_proof = "b461b388bdc3e2d82bf0ef1e694c74b927b2508077accc4
-                         715fd2de4dc4861f5b9bec8cdab35b4ae365935d6f0fc88
-                         39326851166bf215804450927fc708f253fda06e4616180
-                         1b51f76ff6ea86af73a0c6bda40ced7a9b7e1f5f156865b
-                         9b982299221a7d0a745fafb8a5b5c606750562eb2de82f9
-                         4e0fa5cd051af81db21b033f215419c92d79da0ae0425972f47c9"
+commitment_with_proof = "8bd94b05cd4e006145bc974cf5cdcc80e544a8c4624b0a7
+                         f6a5509430c79be788be86536b725ea93dd0a035b4ef822
+                         631dc4e8c1a02cc212cc9f914ecfab3470901d5d1573e4d
+                         03653af76ebf3bd891a226635ac82ee6cc94bc201354713
+                         65d2bb278e21eae8e71661ecd3f6301c7ba3"
 header = "11223344556677889900aabbccddeeff"
 
 messages = "[  ]"
 
 committed_messages = "[  ]"
 
-prover_blind = "3ba0a2583bc7229fa9f2ae3a6697091032947c3a48f302b7fd2b08ca
-                9d193041"
+secret_prover_blind = "1b6f406b17aaf92dc7deb911c7cae49756a6623b5c385b5ae
+                       6214d7e3d9597f7"
 signer_blind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33a
                 baaa94e2"
 
-signature = "b633d10e485e25bf8ac49aa4b8f68c7d7fe7f88c84870d6316a05a65fd4
-             8eef279884e740d067847f2ed8c8936b1f2132e9df8565b12fec544a4e3
-             03be0107efbce1a774efa3cbbf25bb3bfa637fcbd5"
+Signature trace:
+    B = "aa963d9eae5bf642b7b080c9b6cf33f19564e501638d85a0a1f862a86ee0b26
+         e992fe52bbfc103c82038a41146994ede"
+    domain = "1666eb9faaa4d028797e16a9e89478b067615039c763c931c3df5012ef
+              153b33"
+
+signature = "a001fb708fb48dc1c02c84114edfe4cce81a80c067159050c29b9036806
+             21c830e93213872305957c25122de78194a913165b2ffdd806e3152c4e2
+             d712c396bd2619028cce1857d07ca96a9f5157f4c8"
 
 9.2.2.2.  Multiple Prover Committed Messages, No Signer Messages
 
@@ -2182,21 +2677,27 @@ committed_message_3 = "835889a40744813a892eff9deb1edaeb"
 committed_message_4 = "e1ca9729410dc6ba"
 committed_message_5 = ""
 
-prover_blind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20249afb4
-                abd37589"
+secret_prover_blind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20
+                       249afb4abd37589"
 signer_blind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33a
                 baaa94e2"
 
-signature = "91916601e8a9934a33f90263cb925d2f098d8b75be00d35513b506751cc
-             f45c6a1aae61b1a3135cb8987de9d3645e47055bb27569c3011764aa8cc
-             4e5aa0bd9275eed26ce9d03ee7dda8fb4dcd638a45"
+Signature trace:
+    B = "85f7a6c2593bb4c1ecf6bd84aa3fe29e4d2c7d59f236523efbad684a25b941c
+         cf9abb83a8531e9badb7bf1bdb433808b"
+    domain = "1a0842369c4a79ed4709bce26963466699fafea687246b1074c91d9002
+              c4bd1a"
+
+signature = "a9e3a078815b3f7c9d2a9310a5a5b6da193214cb6be6ef77dbbc8fac958
+             ce26bec96ded9334aa0d56dc37992906b6a7d6ead4a7dafea18d3514ea4
+             206f9a93b225debe99b8628ccad921d9253e39561c"
 
 9.2.2.3.  No Prover Committed Messages, Multiple Signer Messages
 
 Mocked RNG parameters for commitment:
     dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDO
            M_SCALARS_DST_"
-    count =  "3"
+    count =  "2"
 
 Mocked RNG parameters for the signature:
     dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_RA
@@ -2208,12 +2709,11 @@ PK = "a820f230f6ae38503b86c70dc50b61c58a77e45c39ab25c0652bbaa8fa136f2851
       bd4781c9dcde39fc9d1d52c9e60268061e7d7632171d91aa8d460acee0e96f1e7c
       4cfb12d3ff9ab5d5dc91c277db75c845d649ef3c4f63aebc364cd55ded0c"
 
-commitment_with_proof = "b461b388bdc3e2d82bf0ef1e694c74b927b2508077accc4
-                         715fd2de4dc4861f5b9bec8cdab35b4ae365935d6f0fc88
-                         39326851166bf215804450927fc708f253fda06e4616180
-                         1b51f76ff6ea86af73a0c6bda40ced7a9b7e1f5f156865b
-                         9b982299221a7d0a745fafb8a5b5c606750562eb2de82f9
-                         4e0fa5cd051af81db21b033f215419c92d79da0ae0425972f47c9"
+commitment_with_proof = "8bd94b05cd4e006145bc974cf5cdcc80e544a8c4624b0a7
+                         f6a5509430c79be788be86536b725ea93dd0a035b4ef822
+                         631dc4e8c1a02cc212cc9f914ecfab3470901d5d1573e4d
+                         03653af76ebf3bd891a226635ac82ee6cc94bc201354713
+                         65d2bb278e21eae8e71661ecd3f6301c7ba3"
 header = "11223344556677889900aabbccddeeff"
 
 messages_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4
@@ -2231,14 +2731,20 @@ messages_10 = ""
 
 committed_message = "[  ]"
 
-prover_blind = "3ba0a2583bc7229fa9f2ae3a6697091032947c3a48f302b7fd2b08ca
-                9d193041"
+secret_prover_blind = "1b6f406b17aaf92dc7deb911c7cae49756a6623b5c385b5ae
+                       6214d7e3d9597f7"
 signer_blind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33a
                 baaa94e2"
 
-signature = "a4aa465aafb6f472844f65c7b85803cc87e7b1f30ecf5dc6342d16a3b33
-             63b4d1b6b61c1978d313625633ab269c1390c285275fb47141a79290064
-             7b3ed1aacfc60dd5e7b6c46fb220c0b7fbe851d8f4"
+Signature trace:
+    B = "b16f00f40d3a60700f7da8589b876ad722279de6e6c66dd2681a6855a3d71f2
+         976802972a4e7bcfa88e1f2e44387d9eb"
+    domain = "69ab8c6eb9481bee9c3cf60dfb9d3f539023e8c6e78c6568d0913ea046
+              752a2b"
+
+signature = "b3e48d4f916c372e330b3727d14f1543cd5de4285e6c3b90692bc842e0c
+             c1f4eed563726df615fbd77427975222d196664d8733cf38ac4c57efe85
+             a055290cde0cd08680309218db9e04f3299985e814"
 
 9.2.2.4.  Multiple Prover Committed and Signer Messages
 
@@ -2291,10 +2797,16 @@ committed_message_3 = "835889a40744813a892eff9deb1edaeb"
 committed_message_4 = "e1ca9729410dc6ba"
 committed_message_5 = ""
 
-prover_blind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20249afb4
-                abd37589"
+secret_prover_blind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20
+                       249afb4abd37589"
 signer_blind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33a
                 baaa94e2"
+
+Signature trace:
+    B = "ab6c841535ba75d568e913d716cf2920624044c5cd99cfbebb564d5c0654a9b
+         bc3c458cc3c51349ece6ec40223f7e2a5"
+    domain = "386bb1c7c4d1e3b95686cd66ad21ba8302f9f87290cc800a79c910f0e9
+              6dbd02"
 
 signature = "ad7169408a137b7365c6f156d5011b72e57e027a7326dc4fb95128099af
              692fe7b1f7208b98ccbf717dcde22a611d2543ebd9679292532d6cd9559
@@ -2351,9 +2863,15 @@ committed_message_3 = "835889a40744813a892eff9deb1edaeb"
 committed_message_4 = "e1ca9729410dc6ba"
 committed_message_5 = ""
 
-prover_blind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20249afb4
-                abd37589"
+secret_prover_blind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20
+                       249afb4abd37589"
 signer_blind = "null"
+
+Signature trace:
+    B = "8444fca0a990ab19c0c7c7cd93ed31406e5dde17c16f1333c2e42284ddfb88e
+         062fed9fd2aa6ae6cc81e6b9a6251fcb6"
+    domain = "386bb1c7c4d1e3b95686cd66ad21ba8302f9f87290cc800a79c910f0e9
+              6dbd02"
 
 signature = "91902b68ac869d0b250355be499fe555e292759de6cad9c28eec51d3f4b
              b5f435238636538d347be44a4b33e0edbfd4d1bc5b0082b29eea3b3aed2
@@ -2389,8 +2907,14 @@ messages_10 = ""
 
 committed_message = "null"
 
-prover_blind = "null"
+secret_prover_blind = "null"
 signer_blind = "null"
+
+Signature trace:
+    B = "853ff87eda30796f5997ec3fb9fffcefa78b0b457ce9f2487b8afaa0ffa5098
+         053dc91a65e0b169d97f7b1123e80ab14"
+    domain = "160cf879138e86f8f6025c41ec94434432a315c33dc6b90c38f1b21ce1
+              01418c"
 
 signature = "8c21175e0465339fd9b32aece83c43402b8b467baf3085028ecb5669e76
              e093c0db878bfd4e6121b2b86260fd38f11ca37fc2f16f145ba600b240e
@@ -2399,104 +2923,6 @@ signature = "8c21175e0465339fd9b32aece83c43402b8b467baf3085028ecb5669e76
 9.2.3.  Proof
 
 9.2.3.1.  All Prover Committed Messages and Signer Messages Disclosed
-
-Mocked RNG parameters for commitment:
-    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDO
-           M_SCALARS_DST_"
-    count =  "7"
-
-Mocked RNG parameters for the signature:
-    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_RA
-           NDOM_SCALARS_DST_"
-    count =  "1"
-
-Mocked RNG parameters for the proof:
-    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RANDOM
-           _SCALARS_DST_"
-    count =  "4"
-
-message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
-             45f02"
-message_2 = "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075
-             f9b80"
-message_3 = "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
-message_4 = "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
-message_5 = "496694774c5604ab1b2544eababcf0f53278ff50"
-message_6 = "515ae153e22aae04ad16f759e07237b4"
-message_7 = "d183ddc6e2665aa4e2f088af"
-message_8 = "ac55fb33a75909ed"
-message_9 = "96012096"
-message_10 = ""
-
-committed_message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310
-                       a1debdda4a45f02"
-committed_message_2 = "089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debd
-                       da4a45f02"
-committed_message_3 = "7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f0
-                       2"
-committed_message_4 = "fac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
-committed_message_5 = ""
-
-commitment_with_proof = "8707ce71651e7fadbdd39cd88e83255629aacd969186eae
-                         fe95ea27935ab54af325220bb410af7f4389f85adc63054
-                         8a02ff284a86147a4fc93da14be0c8f2c8df53b0057f71a
-                         dee985b3b72bc759c2642187bd6cdc9f9e78f4d44b7fea7
-                         cb41563058647bc49614cdbb30b8f88264112e4b9aed884
-                         9609ab34eed40a83fa095d7ed156e9f89e7bb64bec73cd0
-                         2ccd8814aa43b6f46cf2b5684125fbc25c0285aa525dc3a
-                         ba6f21a597f7b5a424a014c5162983082c2d63ff500fc06
-                         b5200423fb647bf67815bb9baf76d5a8ccb665ba120fff6
-                         8b6fd180f4b4c43fb437d68cff8eeac230a47d331b4a72f
-                         124957042e4664bae34f486b5c33d1120eaa676e6e302ed
-                         1f79739b75e074baa702beb7939"
-
-PK = "a820f230f6ae38503b86c70dc50b61c58a77e45c39ab25c0652bbaa8fa136f2851
-      bd4781c9dcde39fc9d1d52c9e60268061e7d7632171d91aa8d460acee0e96f1e7c
-      4cfb12d3ff9ab5d5dc91c277db75c845d649ef3c4f63aebc364cd55ded0c"
-signature = "ad7169408a137b7365c6f156d5011b72e57e027a7326dc4fb95128099af
-             692fe7b1f7208b98ccbf717dcde22a611d2543ebd9679292532d6cd9559
-             75365fe5a260336f1329509e3e1fbce1bd2d9b5ef6"
-
-header = "11223344556677889900aabbccddeeff"
-ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
-
-disclosed_indexes = "[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]"
-disclosed_commitment_indexes = "[ 0, 1, 2, 3, 4 ]"
-
-proverBlind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20249afb4a
-               bd37589"
-signerBlind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33ab
-               aaa94e2"
-
-(disclosed_msgs, disclosed_idxs) = {
-   1: "5982967821da3c5983496214df36aa5e58de6fa25314af4cf4c00400779f08c3"
-   2: "a75d8b634891af92282cc81a675972d1929d3149863c1fc0"
-   3: "835889a40744813a892eff9deb1edaeb"
-   4: "e1ca9729410dc6ba"
-   5: ""
-   6: "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
-   7: "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075f9b80"
-   8: "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
-   9: "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
-  10: "496694774c5604ab1b2544eababcf0f53278ff50"
-  11: "515ae153e22aae04ad16f759e07237b4"
-  12: "d183ddc6e2665aa4e2f088af"
-  13: "ac55fb33a75909ed"
-  14: "96012096"
-  15: ""
-}
-
-proof = "99db8673a7df105113c8ccdbe8d0a68aea7d3ae96450c5ddbb9063ba3be8247
-         7430b295387b2859edd6d85fa3f5512078eab220bdcc375ffcc83bea1ef3db3
-         6f890c9224b0d8bc9273ae341ab93484d96443f755220b2506473d7df67c1a1
-         3300ab7364c6a0a8cf5bd208be36301c3e2a16780750c11cdf6bc594a780306
-         5550103758c5ae386ee568a060fff820e46c0fff4b1e66f2a4c86e098281d0f
-         32f013cfbd092bebbbf184f3b8804f41a478e2e448bef9fe5a6b4d8e7b25fa0
-         bd2d982633a71bcf3e55f8109da0b5e0e9d29ef7da162d476f058bbd9fd16b2
-         c292186"
-
-9.2.3.2.  Half Prover Committed Messages and All Signer Messages
-          Disclosed
 
 Mocked RNG parameters for commitment:
     dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDO
@@ -2559,6 +2985,130 @@ header = "11223344556677889900aabbccddeeff"
 ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
 
 disclosed_indexes = "[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]"
+disclosed_commitment_indexes = "[ 0, 1, 2, 3, 4 ]"
+
+proverBlind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20249afb4a
+               bd37589"
+signerBlind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33ab
+               aaa94e2"
+
+(disclosed_msgs, disclosed_idxs) = {
+   1: "5982967821da3c5983496214df36aa5e58de6fa25314af4cf4c00400779f08c3"
+   2: "a75d8b634891af92282cc81a675972d1929d3149863c1fc0"
+   3: "835889a40744813a892eff9deb1edaeb"
+   4: "e1ca9729410dc6ba"
+   5: ""
+   6: "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
+   7: "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075f9b80"
+   8: "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
+   9: "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
+  10: "496694774c5604ab1b2544eababcf0f53278ff50"
+  11: "515ae153e22aae04ad16f759e07237b4"
+  12: "d183ddc6e2665aa4e2f088af"
+  13: "ac55fb33a75909ed"
+  14: "96012096"
+  15: ""
+}
+
+Proof trace:
+    T1 = "89bd19c0b8bd63be291e6d71ee1a035e4582782c46c4f69c07fcb351592ecc
+          680af505570a7c5f31e955fa031b30b196"
+    T2 = "8a4aecacff0b7e8f7d24289e154d0abff199f709814bc014c7782d922b05c0
+          284c9b14827a26f9f1db2cbaa91e9a5c90"
+    domain = "386bb1c7c4d1e3b95686cd66ad21ba8302f9f87290cc800a79c910f0e9
+              6dbd02"
+
+    // random scalars
+    r1 = "2cf2bd257845b6138247ad87cb387aee347a9104fd1090f92e3b7559e855b0
+          68"
+    r2 = "14f989abea9c9d0cbae6d72e2eb806ac7dbfcd08a8ed647ad5b8e16a83b94d
+          4a"
+    e~ = "07e5d7e2b504d3e3075617400781df19831fac0763602bc494b3fe40dcdefb
+          47"
+    r1~ = "35888226d06bd50f1901008bdf70b1472ad98304664828c6a0fa45b396cca
+           7d9"
+    r3~ = "21e5d2a43d0190ddee9319dab20ad1bfaacf7c12399ac384fe9bf1235c191
+           907"
+
+    // m_tilde_scalars
+    m~_1 = "6683a44c7e1b057c7ce5e99dca9d71a091441b6c23ad9bfd45ba23862f61
+            0cf7"
+
+proof = "8b29fc429ae913cccb71f730fa61fd220a8ce673c6eb704106783b7e00a5fd5
+         eb43fd06e9e76b068ab5ca6da93c0201b883bd8caf5ab4af7b3487f50c68c40
+         a310ff3187be9eef536456ac11ca69c6bc43a96307633ee796ddb32346bb470
+         18391f41e1c03cda63ebd5b112950aaa38b808986492873ad40cecf3b8ca984
+         6837da824bfafd62bb8aea56938b653c7bb76b48c87dd7c7a1627d17281a4ba
+         5a403df760ba8dc8599d383960f63a107618e5c77e27c61832dde296888c21e
+         1acb9c6712f37dc916b91dcec2ead637eb7c926c506ddbddf2753c47b1718bc
+         5fa49a3c1f094502b6b119e71fa0632cf64819f6ea38de039179cf6b168deb2
+         8f8792266b22d4e2403e7c8dccb23bc95a160e0f1d100fffd917533ac135507
+         a55889223ec03952e420637681ff74d30b2e2246a"
+
+9.2.3.2.  Half Prover Committed Messages and All Signer Messages
+          Disclosed
+
+Mocked RNG parameters for commitment:
+    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDO
+           M_SCALARS_DST_"
+    count =  "7"
+
+Mocked RNG parameters for the signature:
+    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_RA
+           NDOM_SCALARS_DST_"
+    count =  "1"
+
+Mocked RNG parameters for the proof:
+    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RANDOM
+           _SCALARS_DST_"
+    count =  "8"
+
+message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
+             45f02"
+message_2 = "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075
+             f9b80"
+message_3 = "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
+message_4 = "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
+message_5 = "496694774c5604ab1b2544eababcf0f53278ff50"
+message_6 = "515ae153e22aae04ad16f759e07237b4"
+message_7 = "d183ddc6e2665aa4e2f088af"
+message_8 = "ac55fb33a75909ed"
+message_9 = "96012096"
+message_10 = ""
+
+committed_message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310
+                       a1debdda4a45f02"
+committed_message_2 = "089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debd
+                       da4a45f02"
+committed_message_3 = "7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f0
+                       2"
+committed_message_4 = "fac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
+committed_message_5 = ""
+
+commitment_with_proof = "8707ce71651e7fadbdd39cd88e83255629aacd969186eae
+                         fe95ea27935ab54af325220bb410af7f4389f85adc63054
+                         8a02ff284a86147a4fc93da14be0c8f2c8df53b0057f71a
+                         dee985b3b72bc759c2642187bd6cdc9f9e78f4d44b7fea7
+                         cb41563058647bc49614cdbb30b8f88264112e4b9aed884
+                         9609ab34eed40a83fa095d7ed156e9f89e7bb64bec73cd0
+                         2ccd8814aa43b6f46cf2b5684125fbc25c0285aa525dc3a
+                         ba6f21a597f7b5a424a014c5162983082c2d63ff500fc06
+                         b5200423fb647bf67815bb9baf76d5a8ccb665ba120fff6
+                         8b6fd180f4b4c43fb437d68cff8eeac230a47d331b4a72f
+                         124957042e4664bae34f486b5c33d1120eaa676e6e302ed
+                         1f79739b75e074baa702beb7939"
+
+PK = "a820f230f6ae38503b86c70dc50b61c58a77e45c39ab25c0652bbaa8fa136f2851
+      bd4781c9dcde39fc9d1d52c9e60268061e7d7632171d91aa8d460acee0e96f1e7c
+      4cfb12d3ff9ab5d5dc91c277db75c845d649ef3c4f63aebc364cd55ded0c"
+signature = "ad7169408a137b7365c6f156d5011b72e57e027a7326dc4fb95128099af
+             692fe7b1f7208b98ccbf717dcde22a611d2543ebd9679292532d6cd9559
+             75365fe5a260336f1329509e3e1fbce1bd2d9b5ef6"
+
+header = "11223344556677889900aabbccddeeff"
+ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
+
+disclosed_indexes = "[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]"
 disclosed_commitment_indexes = "[ 0, 2, 4 ]"
 
 proverBlind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20249afb4a
@@ -2582,16 +3132,46 @@ signerBlind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33ab
   15: ""
 }
 
-proof = "aea05dedbe096aca9987b497c3cb322b0ffb5ac40d2cdba8b5657a41912d7c2
-         a7645d887184a5fde4b694b9834c481db882099dcf78594791ef4bda78e36f3
-         c905857e236079e50d343ed5eeaf3db1e841bf461a943666adf6278775bb1d3
-         08050ba434809ae6507e14640c03de90d22c696f460b6ad6af935d9c7803d3d
-         c317550f9d41dd57822b75ccd20f0461759e38c46ac904b9cfc3bdaa3a04ab3
-         92d075e2e7faab439befeedcc56e2d69ea5f60e6500c3786bdb02ff752157d8
-         6045233d09d99ac27df0aff7318d98ed860bfb7e2d74841889b41c15c65f0d5
-         45e849a1b9ca4115a76537200669c3eccedacaff848703ca58794f6d39a4358
-         4b3f64c63b2e61d92708b52b0e3b0c3456b878331f09b7a383279f74caa51bf
-         056c52539"
+Proof trace:
+   T1 = "802a8579d430dfb6256f3ab6bac9aa6ca87a2d24586c88b6b5f2713f114f22a
+         41ca940464b892d67599281d20b733a4f"
+   T2 = "a2edae923e082379a452a0ce552008e94ec31ac9b2e77b70a08d31bcc617bc9
+         6e787f8e0b0cefa7e0d070e5a58b63e8c"
+   domain = "386bb1c7c4d1e3b95686cd66ad21ba8302f9f87290cc800a79c910f0e96
+             dbd02"
+
+   // random scalars
+   r1 = "5a113c961c5d21bd78b50c3079ea482f5e861c20be37899d26e2ba565ea6709
+         3"
+   r2 = "1ce7fcf7fc75bffdf3cd0a284a5cd4acf6be87df552fa937f246a38e8c03af0
+         b"
+   e~ = "286458907bcd8e3fc535ed9575531919d1942a907ef8ed10360e292fca5ad0b
+         b"
+   r1~ = "40caa7858d917197f007c87ea7e80f638db1313b0e3d46612bb2e73798bb24
+          c8"
+   r3~ = "6d30be5b88e8cb333e4872bdf0c4d7cffe4540eddf03eafaae3d4cb1f3ad1c
+          da"
+
+   // m_tilde_scalars
+   m~_1 = "342ddc1b4e04cef472c764f5bda8afae4b189e78ffcbb519075a83e640c01
+           00c"
+   m~_2 = "51608282827ece21a8ed20b774e2ff129353416006317c16e409e1a925540
+           345"
+   m~_3 = "0c1ff555f2b0f53e8859aff2947b22b1ef9d2be2c65621d8f6aa3252340fc
+           af2"
+
+proof = "91b42b089d23d096669b0cc5cfb238490eb0bd668d32d8092ac38ca526cc8da
+         f7800ca804eb81c0ff48cf95c83669442b811a11fcd97e51603f677f11970ae
+         060afe7e54edc8f436f9851b3a55d93694333122318f31405bc7a74bf153979
+         94b89d091cf605c67c78231611d5fb4af9b9f34177d13fc5d6b197387d5b409
+         8fb5da0b10f26a7235816f71d494e95ba0bf47cfc48802eb69a0ea54f165add
+         455eca6058887e3a9b427bebb4e1c38cfd3b04e6d5d2989f81fc471b2babcea
+         b70646723f1d3fca309676d944d616d93b0dfc16453fcbf1a60200091cdf4b1
+         ab6ce05b2d7d53c1b87f1940dd76fdd478e29ba1d6fea92b03fddab48f3a159
+         961ec0f1e3ba48e3e91298457787514854ca7ae71554185a64ac4c9f5f95f7f
+         160dab89a906174053dc01b6a4f4060dd289495376dff8d460e138e62343ec7
+         af941b453025ce4ef1b5fb6855ae8f86d8027df71069f0ace60d26249dbeccd
+         3db7bff56272695cf1d4481b95780b5bd865b0a229c"
 
 9.2.3.3.  All Prover Committed Messages and Half Signer Messages
           Disclosed
@@ -2609,7 +3189,7 @@ Mocked RNG parameters for the signature:
 Mocked RNG parameters for the proof:
     dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RANDOM
            _SCALARS_DST_"
-    count =  "9"
+    count =  "11"
 
 message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
              45f02"
@@ -2677,19 +3257,55 @@ signerBlind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33ab
   14: "96012096"
 }
 
-proof = "aad82f078d4493194875ab3b19ca73a280fbe9bb8044854c302d70f205183a5
-         3320efff91c2e3a8c7884303a56215c018c5739ffa225c4af2c31fda1d2238a
-         7d57bed7be43534c6aff6a5412c62d3eeaa8ab55c18b72951c508ee81bf1350
-         2622edbeef24d7d81b417d4a895b64990b184247d48b3e759f850cb1af5e195
-         57030204ab7d68e91e206be62668b197363a8d5721ce0fe1939d09ffcc86caf
-         ed9d41851b708fa5bd10d384b809ccfa4f2166cfd7498f665163d746b8303b3
-         e6172b503dbf53f077196c1f91590bfb80d9a4bd7ad60276145283939d3ce97
-         a44dff760644b56229f8fce5a455c2f46c6984a7b4193075f12e9ee362cfc22
-         5d81c62a591b27fffce5732c9b499f7026c7591d02e23e578de51e0f7dd9626
-         bff48b5aa4b1112d747f5953f75c1f72745d7e2d8970f6ebdf83e7eca23a6e1
-         d4114c91d23373030a3a80d93496c85b40a811c0739911c9fa23bf54ec5cc5b
-         701732b7c1346ca7767103a96e4f66f6c43370ccde03349071eb3f9864fcc5a
-         badafc1c020d"
+Proof trace:
+    T1 = "825523bddbdaa2a3bd3b7ec869c6287807e1a585d611400805be9f96f1d3f0
+          2fe650a5406e27da815f8ca938f0d75e8f"
+    T2 = "8e9f246ed76f512b974ee52512e32b2b347da58ad0c0a881d4d40d62d33234
+          43fe911387fdc22e0fc8af6e01115ce97c"
+    domain = "386bb1c7c4d1e3b95686cd66ad21ba8302f9f87290cc800a79c910f0e9
+              6dbd02"
+
+    // random scalars
+    r1 = "034d543fdd164520876e558a77c102d4ad8bc99bf82ebe74590481473df2df
+          56"
+    r2 = "4a8334929ba48d36eb4ebc7f8bfa701b4d3f30ef25bc01e2a45ef9611c1603
+          7f"
+    e~ = "19726feed8e0e5ff22e4f5de19713977beceb12c3e85c1f3fb41cfe4a7237d
+          1a"
+    r1~ = "73012dc2f14039c8de5853b26baab7b51280a3f41425416d78a1a91fbaae9
+           bf2"
+    r3~ = "68263029bdc322a3d6460758135205dec58957ff3e5397276a2f0ffdc738d
+           5e4"
+
+    // m_tilde_scalars
+    m~_1 = "52638b8d190f9fd439188b22c903507cfe5282296c2c9f605f1ef714afc1
+            4062"
+    m~_2 = "2cbc33e381cf6ae09dbb6f1d08e3ea93a5aa03c4a6574fd2fa2e879dc4de
+            eca9"
+    m~_3 = "1ec36e6be1c702255d9aa4d590014b2b5de2f07d290c9551b66977cde157
+            094b"
+    m~_4 = "5491612228a993693c79c11ae169dad9be4116a704ae9ed333ef96e39863
+            73a0"
+    m~_5 = "6f4d920974d33c1e08c86b7f4b6bb7c58a5c0289d8d706a92d4855125cce
+            db70"
+    m~_6 = "279717a2b1e1d34cccfddfe9c8e3729f6e92e28197a09459c6dcd56e3920
+            a0d7"
+
+proof = "97154dab37939b7b94dc0b3e699c248fc2511e9e246c8ba1ef82777a293588c
+         4a80d24539c547b059b9e2a8e5b94dac78ed7c60601ce7843cc18a7119927cc
+         109dc152152d3131d10bd04b140127ec7d5c6a631665e58850b847ea221ac9e
+         1a3b549e5bc46d81c842c65b32c533e0222aafbbee4e7009cea9f03c5840332
+         295c4e58620cfe666706363c190e1398d4190c6556cfc9ddf20c0f62ecd18c2
+         d24678655f33312a2677f01a75894fc8977c01fa19d20f9771f4a3ca6f6e6c0
+         ba00b085bc9264c1f343e0509f1f44bf8a2ff624c45dd583626002101db0b05
+         3f9e3a162b1abd6b1dae6683ceaa3c0e4ea696256260ea1eca9712c353fc326
+         6d156a8f53b1911ee2fb54d0ac9e47cb4d6d20e93d42e3c80d6954565ba2e84
+         a48141858ce9c2f9499b4065c5206ac8ea70ed1bc21b5e9cf868a8bf94f4f61
+         7d316562b2ebefbcfd3825975013c834babea0fbc662407c6d35185e29d86f9
+         518bb1cd530c97a9f0c49ad26b20add7ddd8eb2166b3bff20c58d47fa72d04d
+         12bde322ca29aaeb07936a82655529d26f360a5b18015ddb3ea266abf629e3e
+         4c7e86425c90f481078b1b111410078fff5909b30b5cf641301a24e923b5958
+         950fd24c2d32cce7860a5c7e6c733c503da28eebff28c7"
 
 9.2.3.4.  Half Prover Committed Messages and Half Signer Messages
 
@@ -2706,7 +3322,7 @@ Mocked RNG parameters for the signature:
 Mocked RNG parameters for the proof:
     dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RANDOM
            _SCALARS_DST_"
-    count =  "11"
+    count =  "13"
 
 message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
              45f02"
@@ -2772,121 +3388,63 @@ signerBlind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33ab
   14: "96012096"
 }
 
-proof = "b0c26afa90093c0ae95821188fe91eb750ff908347c7c2b65121f64a234aaa9
-         a6a9afe2d77f76f16740586cda748c48daf216d6856bb3e6aad7276e6e5af17
-         43dcaed67788be7ef0193c9d3bf848835adbef2efb8d457a3e5723378e8926b
-         f394d8c27cb37e35fb0dd6ff4ab83e83025af80cdc6554fdac737432cb310ac
-         572e0151dc824a277210a628d945b85adc9519048cb485757e3598e69b8b68f
-         3c4e35517924d80cd6e609b13fdca1de603fb20a147a8d348de722b054670c0
-         fa438837d88f9843665249b12ef4dee79849854816d800c07e3ff7b6e3b3b57
-         2aaf6f1214cea5f2f783c8dadea01b034809926b63ee66611bc6bc84e26d02e
-         e3df31765d27ca74a6940008b548969e7a0f857791a13b82a696c7be7ba3434
-         8c5cbc7c737b451719b64583131bbe1b57d90f0d9e5d8dc9e51cb8aeb597601
-         3d4654c7e846fbcafb1c8f92ea1ea6842365d374076b2977c9686191e29e39f
-         702a24fe98701245c702b885b7dcb6d6ef9445a8e7ec844c9afa104d732c119
-         e3088fe19aa3444d1f295be3287b956e702889e3e03eec4916898484d78b85c
-         cdb79afede0be28e9e6d2019a60658a7d91473de639e2e121e534813285744d
-         fe3a334513bf65"
+Proof trace:
+    T1 = "af17d9d3db5a0dc69ac9bb0af43c1634202e2b6bd82cb92f8547ed9084453d
+          a96d3b660d3ec69c0ea7684cb339711aa6"
+    T2 = "95b4d41cf08975b312fe3dc1c74fe474b7ae1c71d62d061a3f52ec366d1879
+          d550d251ac1b229978203ca627e41602d6"
+    domain = "386bb1c7c4d1e3b95686cd66ad21ba8302f9f87290cc800a79c910f0e9
+              6dbd02"
+
+    // random scalars
+    r1 = "6fe2700deae18571f365d5b549a03eca3a19414532982cdb173e6442f8488a
+          82"
+    r2 = "4cc007c238298166e67bcbc8332435b27f39879b75ab00ed5e6863f6296051
+          a4"
+    e~ = "53f3c5e5ff89fb20a89d7fffa1198b13744d1ae78457119e5bb3da42d77bfe
+          56"
+    r1~ = "14e6c0d53eba55936c1f1ff11d9775fde7bc366d1859cdbd9ec9f65510a19
+           b02"
+    r3~ = "0a3c38367bd4f42d8b44d988580b40ad1c929a3844fd92e0d2c2a72479621
+           8b4"
+
+    // m_tilde_scalars
+    m~_1 = "4e27cd534e2d06c2af769760a2651010d8f2495066c4a4bbf33778f558c7
+            2b09"
+    m~_2 = "2ea785a49f1b29d7f79323d5e369e3598665c6e6ed1352797dcdd20b249d
+            58fe"
+    m~_3 = "438393d39c51a4efe0bf3b53acf17a7b26724ad7de58ff8bd5fdf9dea0f5
+            675e"
+    m~_4 = "01d9d79da4918a57bd628cd625cba37cb3a278b419e04f5880c6cbc77c90
+            5c2f"
+    m~_5 = "525ec7e60016e00e8e1d039d245bd7c44c4dbff8f566deb9e902d10819ed
+            c0b5"
+    m~_6 = "1a65097b4ef6145d0ca4c8257e193afe8245c85a3cc934b1a28c876c7d65
+            809f"
+    m~_7 = "5f3a2f4d08763ca6a6685aebb3eeb66a0887c750698b44ac17b7bed8ac3a
+            1fd6"
+    m~_8 = "4c583e5e4fc913aa71989afc50cfd8c2024d64df96ed12c7ef82d50ed4d8
+            bb1b"
+
+proof = "86511a727d3930032106cbabd68480c8893cac0698ce156ff7060eb3a9a0d05
+         78e9c80b3a248948ece27c871b281ca9da29e15b5e254a4ce4df998a3b83ec8
+         daee50a35867fc4a545b550718b24385c086c8ce95fb569b9d5b08afc1a63d6
+         a3eb89b61dbac567a7ccfd9fb1462e806170dd885b719b64690025989b696cc
+         50ca7aa625f373f7f3ddb99a01cdc3f1e2442663dc0600cb09ab26066b933f3
+         a6a82f214309be31cc02362bb548e5eef4a04669197a372cb6937a00450c115
+         675d3e026a33af2ec80705a7517995a22661d21c9e4c0b464e798eca9203301
+         04a4c760074342f38b0372a70473904086465606803d9dc77606cf00c3832b5
+         34de13653f33a4723045bee32990a553c5e1d0ce70190e8e458a33ec62fe9b3
+         424e46bf77fe26a2969b74f5a242c4697a286f15057226bd9ab05335e6b2458
+         4bd477179e7623e3b6047c26c1b8e57dace080e114110d126537d9dc2eeb4ec
+         611083a79bce67c29696700f66f86ad4bcb6875d2f664098709700baf0beead
+         805f9f374a178edea6172a315f4d38aa02271afdd0f55f580b870d6a813b4e5
+         b7bc0530dace5dc600bdfd1134986e5aaff4108a608865a196f610cbc403857
+         73bdb5dead610078adcd4bc4fe2c83f28c355429982d2570269168d71f46d49
+         9e124dbadf5f61456cb969b2814b00f61bc87e5cb166e7c40163f0c0124d1bf
+         fc9941c3e805d37b1a7cffd15f39ca98e145a9c62158ac11"
 
 9.2.3.5.  No Prover Committed Messages and Half Signer Messages
-          Disclosed
-
-Mocked RNG parameters for commitment:
-    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDO
-           M_SCALARS_DST_"
-    count =  "7"
-
-Mocked RNG parameters for the signature:
-    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_RA
-           NDOM_SCALARS_DST_"
-    count =  "1"
-
-Mocked RNG parameters for the proof:
-    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RANDOM
-           _SCALARS_DST_"
-    count =  "14"
-
-message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
-             45f02"
-message_2 = "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075
-             f9b80"
-message_3 = "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
-message_4 = "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
-message_5 = "496694774c5604ab1b2544eababcf0f53278ff50"
-message_6 = "515ae153e22aae04ad16f759e07237b4"
-message_7 = "d183ddc6e2665aa4e2f088af"
-message_8 = "ac55fb33a75909ed"
-message_9 = "96012096"
-message_10 = ""
-
-committed_message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310
-                       a1debdda4a45f02"
-committed_message_2 = "089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debd
-                       da4a45f02"
-committed_message_3 = "7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f0
-                       2"
-committed_message_4 = "fac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
-committed_message_5 = ""
-
-commitment_with_proof = "8707ce71651e7fadbdd39cd88e83255629aacd969186eae
-                         fe95ea27935ab54af325220bb410af7f4389f85adc63054
-                         8a02ff284a86147a4fc93da14be0c8f2c8df53b0057f71a
-                         dee985b3b72bc759c2642187bd6cdc9f9e78f4d44b7fea7
-                         cb41563058647bc49614cdbb30b8f88264112e4b9aed884
-                         9609ab34eed40a83fa095d7ed156e9f89e7bb64bec73cd0
-                         2ccd8814aa43b6f46cf2b5684125fbc25c0285aa525dc3a
-                         ba6f21a597f7b5a424a014c5162983082c2d63ff500fc06
-                         b5200423fb647bf67815bb9baf76d5a8ccb665ba120fff6
-                         8b6fd180f4b4c43fb437d68cff8eeac230a47d331b4a72f
-                         124957042e4664bae34f486b5c33d1120eaa676e6e302ed
-                         1f79739b75e074baa702beb7939"
-
-PK = "a820f230f6ae38503b86c70dc50b61c58a77e45c39ab25c0652bbaa8fa136f2851
-      bd4781c9dcde39fc9d1d52c9e60268061e7d7632171d91aa8d460acee0e96f1e7c
-      4cfb12d3ff9ab5d5dc91c277db75c845d649ef3c4f63aebc364cd55ded0c"
-signature = "ad7169408a137b7365c6f156d5011b72e57e027a7326dc4fb95128099af
-             692fe7b1f7208b98ccbf717dcde22a611d2543ebd9679292532d6cd9559
-             75365fe5a260336f1329509e3e1fbce1bd2d9b5ef6"
-
-header = "11223344556677889900aabbccddeeff"
-ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
-
-disclosed_indexes = "[ 0, 2, 4, 6, 8 ]"
-disclosed_commitment_indexes = "[  ]"
-
-proverBlind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20249afb4a
-               bd37589"
-signerBlind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33ab
-               aaa94e2"
-
-(disclosed_msgs, disclosed_idxs) = {
-   6: "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
-   8: "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
-  10: "496694774c5604ab1b2544eababcf0f53278ff50"
-  12: "d183ddc6e2665aa4e2f088af"
-  14: "96012096"
-}
-
-proof = "8b2753f6717ee9034f3bb007b9cafd1b86607225f4c7b5b8f0415556b5ec8c6
-         ef5f04238e21ee08624287c2dd2540a4187de9fc5c82ce64a5a7ba62eeed6e0
-         ed53e71670aef707cd3694d23112f12c9f183fdd4231c2b1dc252fcefd02bc3
-         97c148768f3820f1a998ff2dd0569b0c38285d9b01ed24f52c043e7cdb9274f
-         99df167a6b62ccf36919729a0698d666c00e66d28955be4955cc4ddd0f0c740
-         6056158c77dd28bac094b8cefd125e3629e0a74973383b059f0d85d4efc1420
-         55e8a31ac82724240870f9e3424770c000c614a1901a7236e73823cff2e6ea5
-         c4bc83e372dfb59ee1d7c247f94dca04158ecbae22762b2a50f6256cf276192
-         8df036b31bd043697afa9346376215fbd61f4ca99e130b70fe43221593d62ec
-         bd38bd3b437545ce9fbfb54480e6614901c8840130169dea092b4f829da7b75
-         1a216259944d2754ef3b7dd2ed5ea03d08b422076a0b8d2734ea98667ae8e8a
-         ff9ef213aac633876454e2d05f008e30b8b8a9523b6dd1469d5f319690fd919
-         cfdb05c04c54092d70f7184fea8bc9f9e78e44166cf17ae0da3fce95859d38e
-         0913c812950903fe2ba4a1cc3e6b12062efd01d8059c560d9b2e59b76ec4a4c
-         95bd299af609a773543bf020e824d1b33172792141856691593c236dfedada1
-         bb2db04d63d37f81430acb9f1ef680afe6b3896895481c0ea08fd554fef6eeb
-         fcaa6ca1e8cb671430ec3eebf1164f440b4ce5a7d06f9ae6d1f1fe421abaafa
-         c6aa3fefe672862f2"
-
-9.2.3.6.  Half Prover Committed Messages and No Signer Messages
           Disclosed
 
 Mocked RNG parameters for commitment:
@@ -2949,6 +3507,150 @@ signature = "ad7169408a137b7365c6f156d5011b72e57e027a7326dc4fb95128099af
 header = "11223344556677889900aabbccddeeff"
 ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
 
+disclosed_indexes = "[ 0, 2, 4, 6, 8 ]"
+disclosed_commitment_indexes = "[  ]"
+
+proverBlind = "4fba5396baa36b2fde81d46a9b9ee89c425dbc5e1ffd65c20249afb4a
+               bd37589"
+signerBlind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33ab
+               aaa94e2"
+
+(disclosed_msgs, disclosed_idxs) = {
+   6: "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
+   8: "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
+  10: "496694774c5604ab1b2544eababcf0f53278ff50"
+  12: "d183ddc6e2665aa4e2f088af"
+  14: "96012096"
+}
+
+Proof trace:
+    T1 = "a74e62b1b62be055210ca1873779df176bf1dedc71f7afd872832c91757788
+          29ca93bfb8cde254faca98a6eeb801b0f4"
+    T2 = "af369820104576933b3f8741a5c2253b629200f2528522ffe5f602d18f1999
+          d7d67bbb1e75367d65e050815a8153b2bc"
+    domain = "386bb1c7c4d1e3b95686cd66ad21ba8302f9f87290cc800a79c910f0e9
+              6dbd02"
+
+    // random scalars
+    r1 = "143f08e576583f264b72129ca9892b9c688e13087ed3d9509f85c43120eb79
+          ad"
+    r2 = "0217e712a7b1f6b5e65590f3f440f9d9ed25b76e065294fc728b866dbf4ef1
+          48"
+    e~ = "33b25342e7badf42d6b56c2d2db9a20fbd96b87ff39d8cd471142f32098849
+          44"
+    r1~ = "097f8d774312e72fd4f29f2d5d9d317b3f12942cdb9b2e9be3d191afe5cb8
+           b2b"
+    r3~ = "5a77c4f0644db0007295cf51a6a31457573800802640c2b1cdf28e8ec2cf6
+           a9e"
+
+    // m_tilde_scalars
+    m~_1 = "0766852f1fa8f06c12dd87e3bb6f85162d2fcd7af8e9d14521b521dde5ff
+            8705"
+    m~_2 = "65afb4d1a56075f316f72d2aa86fb9a8379a6ea1d47be68e55eeeb6cd176
+            f0d9"
+    m~_3 = "04a0b83f6d79bb19a9230a7f3cfbe70a81371490dee785cb0a206a462f94
+            41ec"
+    m~_4 = "4168e396ab4deb71c39e12e10ee26d8c0b8b56b136e78b64abdf0baabdb4
+            aa4f"
+    m~_5 = "241cceaf36d43c7f1d56264ac98e7c35fcdfb5d77022334224fa05e43ab7
+            2e23"
+    m~_6 = "59f396acf1d81dff23ea10d92dd718a0928fcd4f90585352b9f628df4904
+            808c"
+    m~_7 = "057f3655600aaf1efe069fd15d1a8ed4f6b122fd3a54b9b2d0db6b7edf7c
+            bfac"
+    m~_8 = "2ddb9f0733eefa0c47edbe47f55601711d2a1b3d13c6f07747a4f6a7f940
+            5fb3"
+    m~_9 = "30d19e2d1625799e21b7dc2b8cc08376863b7b1370aafac151216ecd5698
+            5814"
+    m~_10 = "6f5c1c1071faced0bbdfb5e382ca6a0c62adf679128361ba48f890aca65
+             fb340"
+    m~_11 = "496c5273ff17a2219473e75c203a4ee1210d43a3f31bbf18dbd262862e0
+             73bea"
+
+proof = "a3e58b26112de65d6e6bbeaa662ccad8a2222fabc49fb792fef994681e5424e
+         795e8556d565efd94048507701b7182f782f8697e748f3fa9a75bb87b44beba
+         a16c730d97453f91db189851ad5695c02741b245ce212cf5b86fe83c6cf6f6d
+         0d1937c9ec0e1f8fea1bd6b259ad52c28bdf3b6f8990804037d096030786dd4
+         609c1c729e0b29286ec2cd53470bc202128814b9ac512da494b0bead3c7d345
+         e3f8aa557db59404bf2e7d9409c9c9a412c4b5fc92c9ba3dd9b2198905879f1
+         3ba2090bfac0a78faf7ce19174bfb16266c9383f5e12dd1456b533d7878c7bb
+         2813174df9bbe7b3ece410e4a8890d9fe7775f410e48d35b0e0e656c6ada917
+         6ec8a41bdac4b4d6031410078b2a5a8e8f90cdc430e551c1a94b5353d071cf9
+         45ae03d204f347905e167340bfe6f42a566b7cc793cd692ba74a2442aa95c96
+         7976d734714e17a98c50f067da5c0c2cfef91100ef6c97e9ebabfad141878c7
+         3af82d6a3b36d25baf0e72b7391baef0f220d73c6442c09915de3ed89717d19
+         e5375684f03efb1c8eb65db1049446b420c2c682855703f84f5781cd0bcf944
+         d6c13e883ea03365311256b918e1279067b42cccd99f902a69db49e53c1df89
+         b13cd9ab98c90dfbb1f6ac7a3645505fa04d593dca5f1703ef8b71b78aa134c
+         e1a8e819ba6dd5caac56909870d7eb948b903c7e0d977444df59a158af54eaa
+         3779c575436186fa6804cbe16397ef3759e35f254eda037e237c6a506319bec
+         da29e32cad64a3a941209e92ea9d7e55dd5cf6c7d25747990675eb271b8aa0d
+         3a38111a9ee488f849188e2b7cce5355d79ae2b4e8b1d055583b62cd581bb9b
+         6a4c31b194408959d06d1995f2094f27943d29e819a52bb91ed"
+
+9.2.3.6.  Half Prover Committed Messages and No Signer Messages
+          Disclosed
+
+Mocked RNG parameters for commitment:
+    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDO
+           M_SCALARS_DST_"
+    count =  "7"
+
+Mocked RNG parameters for the signature:
+    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_RA
+           NDOM_SCALARS_DST_"
+    count =  "1"
+
+Mocked RNG parameters for the proof:
+    dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RANDOM
+           _SCALARS_DST_"
+    count =  "18"
+
+message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
+             45f02"
+message_2 = "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075
+             f9b80"
+message_3 = "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b73"
+message_4 = "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c"
+message_5 = "496694774c5604ab1b2544eababcf0f53278ff50"
+message_6 = "515ae153e22aae04ad16f759e07237b4"
+message_7 = "d183ddc6e2665aa4e2f088af"
+message_8 = "ac55fb33a75909ed"
+message_9 = "96012096"
+message_10 = ""
+
+committed_message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310
+                       a1debdda4a45f02"
+committed_message_2 = "089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debd
+                       da4a45f02"
+committed_message_3 = "7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f0
+                       2"
+committed_message_4 = "fac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"
+committed_message_5 = ""
+
+commitment_with_proof = "8707ce71651e7fadbdd39cd88e83255629aacd969186eae
+                         fe95ea27935ab54af325220bb410af7f4389f85adc63054
+                         8a02ff284a86147a4fc93da14be0c8f2c8df53b0057f71a
+                         dee985b3b72bc759c2642187bd6cdc9f9e78f4d44b7fea7
+                         cb41563058647bc49614cdbb30b8f88264112e4b9aed884
+                         9609ab34eed40a83fa095d7ed156e9f89e7bb64bec73cd0
+                         2ccd8814aa43b6f46cf2b5684125fbc25c0285aa525dc3a
+                         ba6f21a597f7b5a424a014c5162983082c2d63ff500fc06
+                         b5200423fb647bf67815bb9baf76d5a8ccb665ba120fff6
+                         8b6fd180f4b4c43fb437d68cff8eeac230a47d331b4a72f
+                         124957042e4664bae34f486b5c33d1120eaa676e6e302ed
+                         1f79739b75e074baa702beb7939"
+
+PK = "a820f230f6ae38503b86c70dc50b61c58a77e45c39ab25c0652bbaa8fa136f2851
+      bd4781c9dcde39fc9d1d52c9e60268061e7d7632171d91aa8d460acee0e96f1e7c
+      4cfb12d3ff9ab5d5dc91c277db75c845d649ef3c4f63aebc364cd55ded0c"
+signature = "ad7169408a137b7365c6f156d5011b72e57e027a7326dc4fb95128099af
+             692fe7b1f7208b98ccbf717dcde22a611d2543ebd9679292532d6cd9559
+             75365fe5a260336f1329509e3e1fbce1bd2d9b5ef6"
+
+header = "11223344556677889900aabbccddeeff"
+ph = "bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501"
+
 disclosed_indexes = "[  ]"
 disclosed_commitment_indexes = "[ 0, 2, 4 ]"
 
@@ -2963,26 +3665,76 @@ signerBlind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33ab
    5: ""
 }
 
-proof = "a91c9c7c20c3b517f32fa4d43e8e40cfe7fce4471444fee0286588f6c6d605f
-         ccb4a2f89fad2f00f7675ff3f9848ea1e8e247f9c31b72e351c24da70580251
-         80c89b099c9f4064489e1a3020b06eae1bdc5ea939f7807beda0720e670c09a
-         9010b66e9e7ad57a503d9bdd6fc3cb4a97ba35beb260cdbc1b5414ed563e6d8
-         144f159ac735ca3464bbf870a0e409fbb7627515aa01d80ac66ef2cec5d5b26
-         5b1c152871eb80aa0ce52db44c3d5576001f12cc6f6a8fd9bcf46f59e03f1ce
-         f5b95b1f0b55f50842f689f88a494ef9b1527a58ced75970835d2990738e371
-         1c0a05b3b2dec29422dbe06f9e25a63cb7c80cbf30fbd284832d27a9565c529
-         8852aa5a69546b76632078e0b602f93ff64fd2f53aa8f35319256f834294c2e
-         90c91632f036206dcac1e2e4cbc61f43e61836abb6cf56e2cdf4906a5299303
-         4b4e8d96d6622dc3ee8fddfb9b5b979cfd74241b2065bd0d74bce1675b4848d
-         a554ae0484c71d43cc872abdf4087dc93f1ff08ccb6adeeb9bad44668a81bfa
-         791cd0207a466d6a01d8d3aa4576bd01e71928da1515ad174d05968067f1e6f
-         bc3acdccd38d42acddf1a37a9710a55dad193d05ddf000616a22c8834d8c8d8
-         8493e61170e85628a8b5b1059d044133a8d8f42e8daa9bc02aac24dc90096b0
-         a39c2e28924543c6173de90eab448e02e1dea06f378ecf2f92d53797d5d5d81
-         888b06626bdcfbe83cdaaa8a7f0fca4c0cf989245bdd9753fb84247cdd159f2
-         8c6406dde4eee70a96afb6b03adeb53ef6109d6bc71caf3adaaea02430c50e2
-         d0b3ed7995aa2f84f9202c2de5023253c5b58dd950c4daf0378d77cdb17daf9
-         06563f4d6d6d68f2fc2"
+Proof trace:
+    T1 = "a7cc44212d02317c8e185a6d55eb311daa108ba6150fbab4198a2026cc27b8
+          970530b9e3b1964f1ed6bae468a73b8640"
+    T2 = "b9c9fcd27848b714a9d520daae856c93d1e560ae865040fe3a16e1055a83b7
+          149685518faf4acd0a5f41892707962377"
+    domain = "386bb1c7c4d1e3b95686cd66ad21ba8302f9f87290cc800a79c910f0e9
+              6dbd02"
+
+    // random scalars
+    r1 = "23d8b41f82e80a32c4606bf7198b6a85bfdcbb9a87773a54e668aa6cc50f4b
+          60"
+    r2 = "259cb8451e183911fd32701689c8da084a351cbc878edabb5c65892f5566cb
+          ee"
+    e~ = "0750d611202174343211411eb9aeb18d6b09057c51e9f9524cf1ec29a845a4
+          c9"
+    r1~ = "519d28834203f545ce2e917b1428e59f4ca3e716351c2f03b9884bf3b84ee
+           5d9"
+    r3~ = "664fd86f51bd56079f1f58e8f29881ca6881f9022b267a0842eb9bd66d8ff
+           116"
+
+    // m_tilde_scalars
+    m~_1 = "35c21b4641053b0e351cecc6b4f7aa9687771ea67785ba51ddb13ee3d661
+            6344"
+    m~_2 = "2dec7bd3fcd718500184d41d750642b55d21ea63b494bdf41011dca9d707
+            5b57"
+    m~_3 = "277ca0dcb0183675a981bfa22e2ad09c8a61b23761575078374a9df40cb6
+            3237"
+    m~_4 = "3376f31a419eb425ae5375029f0f1caba349467ff477c30aa6a577ffbabc
+            162b"
+    m~_6 = "68b417316ece357d32bd0e94f5211a900abf5888ec25ad7762d40413d45a
+            6ff5"
+    m~_5 = "22808132ab0fea4b85a2b6621abc8f2e78b65f3417db2e8350bec0a5d02f
+            12f7"
+    m~_8 = "1f45ce8d90d44399aafe97bd024636747766b670004c366af6b19dfd211f
+            dae9"
+    m~_7 = "668d12f5ef2c391c0dc06f1f2c1451d710c743311cd213c268bd7b410853
+            00d5"
+    m~_9 = "304b07fecf8dcc052c29b4d52934a031d4abdad430c4bd3ccc65028d4e26
+            da8f"
+    m~_10 = "02d05a55bcfe243c268154cc03f548ffa461f84c4087c7bbb6284e4e07f
+             fee53"
+    m~_11 = "3e20f9d1709e50cf709530e4e267f544eda9c4b9e214e4b133c20cda847
+             7ffe9"
+    m~_12 = "6e41035b050e5ea1f97bc975eb5a63447470bc24639a7f63269e8b3f5d8
+             f94a3"
+    m~_13 = "31dad9cf8ab3482296a766c4c6e2a97b2ad9e83cf8c83755940736235be
+             a6e0e"
+
+proof = "b3c858ca8b1193a759acfcbc985345103384565e42b5523443031879f2bc757
+         a1714c442882801146e7e1222b8c72fa59195d7791d8f1c1f5b8e0aca00929f
+         64abbce082b0667c1e98aff024a66351da986aa15a598170510397d783eb901
+         92fb3c7144b00468715699f049b547b8e49d66e2ddd29a19ebc84cc7e1c75f5
+         449310e4a711decd25a4d85cbe3bbc18fa613fe26826949a6f966ad2a1f6665
+         a8921af9f48bd73adc8cd7902d6c85822f2553ee684f9aec8d4f41d2d3cae7e
+         f0ddfb0887132a8a178bcfa2ea5da363a37507194f79c59607954dd766af752
+         3ffa56e247ba9c7dbfdc99b01a42513404fa16f38940feb9a940bb54f08206b
+         bb246e809bf0a942d6d52ddd5395bf5c2ee4a134295858716ba66da7af44b63
+         c3d9bca66f01c427490146638cdbd5013f5be295c276045daefca9da13c3ef5
+         459523fac4bbb7e6eee29e894d4a6142617a7dac1c690e2ca6a24c10a0da442
+         51c2229b469905f81312f3edbe00421e3b69ed1763a05e6102a2c85fdd20680
+         070f360e8cfa50e8db780b80a721f86594e3b0df74ac31b6aec65f245592a58
+         1a78a0cbeb8fffa5ca3dd2f0f136f27267d5e4db625ba5a1b1b4a4dde9fb74f
+         80e1a1a7140a21f6850092bcd525586f41eb110309754d3b6a2c11577e3327d
+         c9553de5ec80203d34c9541fb603e442af297cfebef0a6c12500ae60103717b
+         dc2dbced805552d7569bae9d6d45a984c08437b6d9135ab55c97b31abe6f381
+         5021308a4b2393f45b0446a6e2317aa0f1b3de4ffc7703d5f5178d55210bdc1
+         4faa57a8900b31684719db9d68724a5b7453e88329ac36e01906799a42e2f4e
+         2720996ace5a946051ac5c8a053b68178e38dcb285fc7dacf5207714880e95c
+         0c0136da4a1a33f229830f805cee393b3e58d88a4abd6e5b8c6c5cf8d534c85
+         b01892816cc55b0511a581756c6b575773be5381be1a3f17fb493"
 
 9.2.3.7.  No Prover Committed Messages and No Signer Messages Disclosed
 
@@ -2999,7 +3751,7 @@ Mocked RNG parameters for the signature:
 Mocked RNG parameters for the proof:
     dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RANDOM
            _SCALARS_DST_"
-    count =  "19"
+    count =  "21"
 
 message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
              45f02"
@@ -3057,29 +3809,85 @@ signerBlind = "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33ab
 (disclosed_msgs, disclosed_idxs) = {
 }
 
-proof = "8998dbb626dd06da899669c0ad530f22e74be896b3e51e1f91f87aabbcfbd83
-         7cccdc31a114ba69491ada861dcb2f44cb022c0a25114ea4e5b54fda5699856
-         9457aab9bf22297c3fc731c9902e404331cad6e9b7557759aa98ca4c9e2b363
-         13928d3ad48967d04b4898101dc8207752e4c224338c05b0c7bd58f667b7b88
-         f9635b1c16fd3b49aa4d1bbfb2022c1e9991491a970b715ad0a3dcc7182d031
-         eb7ec5667b42d6cc173688f74eea1f39497a7b3db7375331f5138f575b370f9
-         d83f9818098533e577656aca0d4bfab1288f5a0e56e214dc6d2c39f51519ed3
-         a99651d24e8fcdf928c033241cc2e460d6b0a87fb1963799363ef48f5146bc2
-         edd393aa3305f9d3d3eb8d754030025ad482638eb9d34008956f015ea65ecd2
-         90421026e08694ac4c253fab220a0c3335815085ea8023c9e4cd316247a8f55
-         011cc95e5f545af32f61b3aeac3af1c4fb74d5e4db79090a473ae7f7b69da40
-         bb1a12b10b10efa2850b1efb1a990066f4188f481e3ef8ae4dfab9434c69345
-         4f33ff0cb1a84e5e7c80eface9dadeb47e7bea81e4cd420cc342ae05b1bd3fe
-         c5fd3e0bf60411c3e310034ee6f0093eb2254d862a2d50d26e35c3bc9fb5176
-         d64493afdbf7b768d29055bbfcf61f70e9f30b4398721d13c86620231ea7fe5
-         49eaab104146fbe49b0ed97bbe06713134bb0acb6fda03482483e94ba8fc551
-         08df9a0a05c959d11c45bdf0bf71502459c394963a4b4a69c06e73a4eab5abe
-         96a34dc0357bd91ea4b7e8b15945304187aca4e2e81f7799edb0144546179d7
-         42b3ba0fc956b8442328f8d37ec1ea888e82e4eb01864640a6255e7cfe752b1
-         aa72dabe38c1ed7e0183bd554a27b634bf7e80509983b99008d32e23aca3842
-         6e5189500c23a8bd898347a628b876c03e0ba7b0f66c9430720e4fa37a19d84
-         c9ddc56a54425a1307096043f64ce29806595ba2ce862ede146a82ec560f7d5
-         b2a33c1502538f0bd1f102"
+Proof trace:
+    T1 = "842def1bd17fc544219d01f8e0a483519302fce802da67d13cd2f82bf97097
+          6692d3895a53311d996190cfe97620763a"
+    T2 = "a0e4a3c8b4d296d32edcd8f788d003e20697f70e3f992dd1b4efedc69717ee
+          cd2e05cc95558641e5fb5814a77de35090"
+    domain = "386bb1c7c4d1e3b95686cd66ad21ba8302f9f87290cc800a79c910f0e9
+              6dbd02"
+
+    // random scalars
+    r1 = "60d345d6f2bf3d7b6734145a0a1c84731771d9fb8f2caa849dc33a3e1ed429
+          06"
+    r2 = "5fd44fc64975d153f17a73ce413b86211acf63e62494ae73a0865f068588fb
+          02"
+    e~ = "6e3fdd342aa6c154fd11ba738e191c54f9877522f4648b466eb4ee1d301780
+          bb"
+    r1~ = "3da42b3641758dc3d8bce1ced15d1fd1d291bfd533d11373248082eca6d45
+           d9c"
+    r3~ = "01be275b265a083b2b8a1ba7110576e28cfcad346717c512c3311ca403168
+           120"
+
+    // m_tilde_scalars
+    m~_1 = "67ff540238565851a1f98c6357507be2da16884e44ae26fe4d0a0a860753
+            2fbe"
+    m~_2 = "5de3cb769cc629a9ab21fe29bb7acc06cd5df979826fabe26b78cc9ab67a
+            32f9"
+    m~_3 = "1a14acb3666d2d123db8d19ec473dd980cb1100532be1abda1b941668b43
+            ff28"
+    m~_4 = "4f03cb50f6a25f1f7f277682ab5965a772ac0b24e9ad2f1a7b42a047d8d7
+            adc6"
+    m~_5 = "11ef78647f2fbdc57f8d29cab816584920596bbd3813d2ee7df7f44b2461
+            7f33"
+    m~_6 = "4d7fb091d8f42be6fc0fc0401cc5ffbf0da7aad8951a451f26abf5820eec
+            e429"
+    m~_7 = "03b576c0e1b8063af7f9acc91784cb062920820e9b2d4baf11d55777d11e
+            2946"
+    m~_8 = "5c8053e4347ad1c5f600a7d1d5aef448dc0fbbad6204430486c65e7216c1
+            8a73"
+    m~_9 = "4b81ebb73b19c698f62d0fda7505452e97382b09bbe7821ef40fb1f3b3f2
+            6172"
+    m~_10 = "1ab69f6373dcf9d87b75f2e140a34345a92f7952a44436832036bf6bc4f
+             b3b75"
+    m~_11 = "0f0059e68095e5edccc546ac5312234ed1d6b1ca65c4b13f77dc1b7bae4
+             623a2"
+    m~_12 = "1372682d7f0522cf87aa4805f43d493c2beb7784fe9875712480a5bec63
+             a8b69"
+    m~_13 = "366a39b41f91f2f6faee881f06c1077e9c65257fc75587353880f6406ff
+             828f0"
+    m~_14 = "4eac85d64994ff0b48690a25055eb62f0f0b4a89095c54fc1b08fb7ba0e
+             90eae"
+    m~_15 = "475da477f48d661e2271eefd16d7437a64f6ec7a4cda8deaacdc9c62754
+             89fe2"
+    m~_16 = "3a9be520243abe976b50d5ad343692ac99e28d3d11e4e9a5cd458316d09
+             7ce36"
+
+proof = "83ca9b4dc4a514497c22f78274a1d53414e5e5bc325f6c606386e033140416d
+         c306e6f97d4167f57afceb5ad9eb69f51a9573227b8f384a7835808d9285a1c
+         3a2baabef4c96f73be3077d8d11b045287e30642de975eda73b60f8ec4f56a1
+         211b0e88764a49abae79d2e09286c7656fa49c7ec2881da9baf1bda300bf512
+         d7e112d7ec04d478c5781ae7aa1d47f6abdb58d4f5c93d408491e274c9db822
+         6e677a75f0d3c48c3ce143293b2f3ec21c56b715c3d199a6a334ab3a01a54ca
+         a670079ec782004d61f10dd73f6d364122b9a33340bf2d3f20fb1488b240184
+         b62cfd6b016ca48fc4c0defdbd696ed26b010cc21f70c9b7d5a80889c5be0a2
+         3338f3f2facbe7867bdafd257dedd76eef3854095c687f57944aa01b035330e
+         a8686965d12df901100b7f11c0ef689983171efd12e05a135fea22212ecb1fc
+         d12f6b5cffbea5480f989cf24453d4eab9f088d6225597be7331449718cddf1
+         9ef02f641ffb10263f93e79031bcabae5780c886fef2fcfe2d6c0313f909719
+         c0aaebf8d81004af6fff71bff0af2caa0f020ac9520a13e2b58a2d8064e3ad2
+         697ddc4d0444b55169bdf877ba313467d7992358060413e69ac102f38eb66bd
+         d8d21e7e9af7b3472ae62e7c3c27688870b16582363eaf168da96258c25d303
+         7117843e5a8df52da151b462dd3d7fb09a31200cbf061cd6d9a87fa576e3153
+         61e56359ce04b704ee14f21c6634ef5ded4a07fa815bc15051bc8588b4b18b6
+         18f01474c2b8698571b43aa03d8b3bedb44ca6d3982c40ecc2be6e4607a5f21
+         9dcf1be6befaa626c0135ab9e0d6aabaf0b0c912c8fec8b56615d3daec48a5f
+         aad59c1c00daf1665a21abc86a9e15f12a5c156f196d822ba261c9ffdcdcc8d
+         9fa1db7ab025f2edb3a08e8c79aa15e0bdf8a8550dc6b87a56ce287798bfc63
+         57adf247a072ebba9dec8a8aecc2f0799b81b75178520da96f37d35027b988e
+         5117414f0572db8e6339b3404998ec64fc04128a59e19d22a9bc9700feea187
+         8c6f7941c67ad4adc40d738e1517e4404464799ed170726f72b4a4e0ce42084
+         91db5c83c601b19a9a4171aa0f5b8a5eb5c06c973a7ff43db76d10a7"
 
 9.2.3.8.  No Commitment and Half Signer Messages Disclosed
 
@@ -3091,7 +3899,7 @@ Mocked RNG parameters for the signature:
 Mocked RNG parameters for the proof:
     dst = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_PROOF_MOCK_RANDOM
            _SCALARS_DST_"
-    count =  "9"
+    count =  "11"
 
 message_1 = "9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a
              45f02"
@@ -3141,45 +3949,88 @@ signerBlind = "null"
    8: "96012096"
 }
 
-proof = "8c21f6779895cb662a189c55496bfde11055404bb3011a9d5f3d8bdea2ce550
-         7f947031cb5153fa1cc51f1dd2073f68d96e093d9c36135723c869a6a689914
-         14825317beb3eaa54e20f323f41469416ce3f3f92e54b387727ad48e4c9b135
-         60e2484594604cd9b5abcf159f38defb3f63ee06d321d6bc3ed035e09336b2e
-         5dc64617f6e19a229ef7a8e647c38b67e24f19582fded334ec730f26d495006
-         ad4566a97b7ef1653176777f548cf0bb16697f3c0a5caba71c260021e06f6af
-         d831791a0a32dbb1e33b9df44742081ddb4bacb7ad2f56fd3ac1745b5793b2f
-         c8c5fcd1f85c68bf7d469df328d4498048a427f78b3e4be40badeef42614c58
-         3699f57c456d90ab14869405c0ace7e41ae8a11610bb253e9f4d9cce2372ee0
-         294e4ccb44210ad7b559882116abb0cd3e957eb8f9d525afc8d92671f219dc7
-         ee1a6b802a52107eee9dba4d5570a9f77a6e41c50e22bca83dafc8ff179924b
-         0986cb83c3d"
+Proof trace:
+    T1 = "a554c36a5ee97c631ca428a68cec15146107beabafddeb466b7b6de310db0a
+          80c2ac11c7beb457029b4127b73281944c"
+    T2 = "a61f7dd16540060c811ac7d7586939e86cd1867c367d186e37b67f5b61be6c
+          d6fb3eac56bcf06f254399cf2a82d499a6"
+    domain = "160cf879138e86f8f6025c41ec94434432a315c33dc6b90c38f1b21ce1
+              01418c"
+
+    // random scalars
+    r1 = "034d543fdd164520876e558a77c102d4ad8bc99bf82ebe74590481473df2df
+          56"
+    r2 = "4a8334929ba48d36eb4ebc7f8bfa701b4d3f30ef25bc01e2a45ef9611c1603
+          7f"
+    e~ = "19726feed8e0e5ff22e4f5de19713977beceb12c3e85c1f3fb41cfe4a7237d
+          1a"
+    r1~ = "73012dc2f14039c8de5853b26baab7b51280a3f41425416d78a1a91fbaae9
+           bf2"
+    r3~ = "68263029bdc322a3d6460758135205dec58957ff3e5397276a2f0ffdc738d
+           5e4"
+
+    // m_tilde_scalars
+    m~_1 = "52638b8d190f9fd439188b22c903507cfe5282296c2c9f605f1ef714afc1
+            4062"
+    m~_2 = "2cbc33e381cf6ae09dbb6f1d08e3ea93a5aa03c4a6574fd2fa2e879dc4de
+            eca9"
+    m~_3 = "1ec36e6be1c702255d9aa4d590014b2b5de2f07d290c9551b66977cde157
+            094b"
+    m~_4 = "5491612228a993693c79c11ae169dad9be4116a704ae9ed333ef96e39863
+            73a0"
+    m~_5 = "6f4d920974d33c1e08c86b7f4b6bb7c58a5c0289d8d706a92d4855125cce
+            db70"
+
+proof = "b52167f9cee8792582213798dc6909be7ac4a9084750b68d31abcc0c1231cc8
+         70e2b4c06e4799f2913d95fd2b84434a3b1392df3fe62719647cbf081f0677d
+         f748bf49a072551cfbee0a8d8772fb7b32208213ae3ba24c2ac8d2cc55aba99
+         b7cb5d7b5546131fa21e6fe6b6715b81532d18ecc63908ac25dc2fd3b4dd054
+         600ac6b2f82d05bef0e898d9b90f89df2aea62b346bbdeffe56401e3869fecf
+         66086f1a94b7d12d96737fbcc131aaafe0fdd602536c489001cc775398558e6
+         78e9f67c36233ced8c104d99f66a70cb4fd1f3524242535cef2ac8b4c357822
+         aca9c95284a7d825ece0a961b813b917312c0271b4d3ffa3244f0be87c8ec8d
+         dfa575c1dc23d25347f51d20b24b950a956ead3e3ee755d9171ff136d3e464c
+         acb53464acef7085aeee0c7556d576e4e81734d460a0905a0ef594d82f08d3d
+         1d791e3278ddb784653f3a5c3fb789470fdc3f768c56007aab7709a1b82fd3c
+         14c60778c15f662d30920dab48034fd703e70793a8204f34235f5fb7fe38959
+         b58e11a539beb9e1e6e16aad50d7a59d3c7ae33e30594995eebf1985ce95298
+         5b23287b454c89fc72b7a63829dc95fd2aa5bc68a146a"
 
 10.  IANA Considerations
 
    This document does not make any requests of IANA.
 
-11.  References
-
-11.1.  Normative References
+11.  Normative References
 
    [I-D.irtf-cfrg-bbs-signatures]
               Looker, T., Kalos, V., Whitehead, A., and M. Lodder, "The
               BBS Signature Scheme", Work in Progress, Internet-Draft,
-              draft-irtf-cfrg-bbs-signatures-04, 30 October 2023,
+              draft-irtf-cfrg-bbs-signatures-05, 21 December 2023,
               <https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-
-              bbs-signatures-04>.
+              bbs-signatures-05>.
 
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
               DOI 10.17487/RFC2119, March 1997,
               <https://www.rfc-editor.org/info/rfc2119>.
 
-11.2.  Informative References
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+12.  Informative References
 
    [BG18]     Bootle, J. and J. Groth, "Efficient Batch Zero-Knowledge
               Arguments for Low Degree Polynomials", In CRYPTO, 2018,
               <https://link.springer.com/
               chapter/10.1007/978-3-319-76581-5_19>.
+
+   [I-D.ietf-privacypass-protocol]
+              Celi, S., Davidson, A., Valdez, S., and C. A. Wood,
+              "Privacy Pass Issuance Protocol", Work in Progress,
+              Internet-Draft, draft-ietf-privacypass-protocol-16, 3
+              October 2023, <https://datatracker.ietf.org/doc/html/
+              draft-ietf-privacypass-protocol-16>.
 
    [P91]      Pedersen, T., "Non-Interactive and Information-Theoretic
               Secure Verifiable Secret Sharing", In CRYPTO, 1991,
@@ -3192,11 +4043,6 @@ Authors' Addresses
    Email: vasilis.kalos@mattr.global
 
 
-   Tobias Looker
-   MATTR
-   Email: tobias.looker@mattr.global
-
-
-   Andrew Whitehead
-   Portage
-   Email: andrew.whitehead@portagecybertech.com
+   Greg M. Bernstein
+   Grotto Networking
+   Email: gregb@grotto-networking.com
