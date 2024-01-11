@@ -41,5 +41,9 @@
   "signature": "91902b68ac869d0b250355be499fe555e292759de6cad9c28eec51d3f4bb5f435238636538d347be44a4b33e0edbfd4d1bc5b0082b29eea3b3aed2b718706a8d08ada2fe623279472fa5e4c571c44ebf",
   "result": {
     "valid": true
+  },
+  "trace": {
+    "B": "8444fca0a990ab19c0c7c7cd93ed31406e5dde17c16f1333c2e42284ddfb88e062fed9fd2aa6ae6cc81e6b9a6251fcb6",
+    "domain": "386bb1c7c4d1e3b95686cd66ad21ba8302f9f87290cc800a79c910f0e96dbd02"
   }
 }

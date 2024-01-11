@@ -22,33 +22,32 @@ organization = "MATTR"
   email = "vasilis.kalos@mattr.global"
 
 [[author]]
-initials = "T."
-surname = "Looker"
-fullname = "Tobias Looker"
+initials = "G."
+surname = "Bernstein"
+fullname = "Greg M. Bernstein"
 #role = "editor"
-organization = "MATTR"
+organization = "Grotto Networking"
   [author.address]
-  email = "tobias.looker@mattr.global"
-
-[[author]]
-initials = "A."
-surname = "Whitehead"
-fullname = "Andrew Whitehead"
-#role = "editor"
-organization = "Portage"
-  [author.address]
-  email = "andrew.whitehead@portagecybertech.com"
+  email = "gregb@grotto-networking.com"
 %%%
 
 .# Abstract
 
-This document defines an extension to the BBS Signature scheme that supports blind digital signatures, i.e., signatures over messages not known to the Signer of that signature.
+This document defines an extension to the BBS Signature scheme that supports blind digital signatures, i.e., signatures over messages not known to the Signer.
 
 {mainmatter}
 
 # Introduction
 
-The BBS Signatures scheme, as defined in [@!I-D.irtf-cfrg-bbs-signatures] can be extended to support blind signatures functionality. In a blind signatures setting, the Prover wants to get a BBS signature over a list of messages, without revealing those messages to the Signer. To do that, they construct a "hiding" commitment to those messages (i.e., a commitment which reveals no information about the committed values), together with a proof of correctness of that commitment. They will then send the (commitment, proof) pair to the Signer. Upon receiving that pair, the Signer will first have to verify the proof of correctness of the commitment. If the commitment is valid, they will then be able to use it in generating a BBS signature. The result will be a valid BBS signature over the messages committed by the Prover. The Signer can optionally include messages to the signature, in addition to the ones committed by the prover. Upon receiving the blind BBS signature, the Prover can verify it using the messages they committed to, together with the messages the Signer included to the signature, and then use it to generate BBS proofs normally, as described in [@!I-D.irtf-cfrg-bbs-signatures].
+The BBS digital signature scheme, as defined in [@!I-D.irtf-cfrg-bbs-signatures], can be extended to support blind signatures functionality. In a blind signatures setting, the user (called the Prover in the context of the BBS scheme) will request a signature on a list of messages, without revealing those messages to the Signer (who can optionally also include messages of their choosing to the signature).
+
+By allowing the Prover to acquire a valid signature over messages not known to the Signer, blind signatures address some limitations of their plain digital signature counterparts. In the BBS scheme, knowledge of a valid signature allows generation of BBS proofs. As a result, a signature compromise (by an eavesdropper, a phishing attack, a leakage of the Signer's logs etc.,) can lead to impersonation of the Prover by malicious actors (especially in cases involving "long-lived" signatures, as in digital credentials applications etc.,). Using Blind BBS Signatures on the other hand, the Prover can commit to a secret message (for example, a private key) before issuance, guaranteeing that no one will be able to generate a valid proof without knowledge of their secret.
+
+Furthermore, applications like Privacy Pass ([@I-D.ietf-privacypass-protocol]) may require a signature to be "scoped" to a specific audience or session (as to require "fresh" signatures for different sessions etc.,). However, simply sending an audience or session identifier to the Signer (to be included in the signature), will compromise the privacy guarantees that these applications try to enforce. Using blind signing, the Prover will be able to require signatures bound to those values, without having to reveal them to the Signer.
+
+The presented protocol, compared to the scheme defined in [@!I-D.irtf-cfrg-bbs-signatures], introduces an additional communication step between the Prover and the Signer. The Prover will start by constructing a "hiding" commitment to the messages they want to get a signature on (i.e., a commitment which reveals no information about the committed values), together with a proof of correctness of that commitment. They will send the (commitment, proof) pair to the Signer, who, upon receiving the pair, will attempt to verify the commitment's proof of correctness. If successful, they will use it in generating a BBS signature over the messages committed by the Prover, including their own messages if any.
+
+This document, other than defining the operation for creating and verifying a commitment, it also details a core signature generation operation, different from the one presented in [@!I-D.irtf-cfrg-bbs-signatures], meant to handle the computation of the blind signature. The document will also define a new BBS Interface, which is needed to handle the different inputs (i.e., messages committed by the Prover or chosen by the Signer etc.,). The signature verification and proof generation core cryptographic operations however, will work as described in [@!I-D.irtf-cfrg-bbs-signatures]. To further facilitate deployment, both the exposed interface as well as the core cryptographic operation of proof verification will be the same as the one detailed in [@!I-D.irtf-cfrg-bbs-signatures].
 
 Below is a basic diagram describing the main entities involved in the scheme.
 !---
@@ -62,8 +61,8 @@ Below is a basic diagram describing the main entities involved in the scheme.
   |          |                                          |           |
   |          |                                          |           |
   |          |<-(2)* Commitment + Proof of Correctness--|           |
-  |  Signer  |                                          |  Holder/  |
-  |          |-------(4)* Send signature + msgs-------->|  Prover   |
+  |  Signer  |                                          |   Prover  |
+  |          |-------(4)* Send signature + msgs-------->|           |
   |          |                                          |           |
   |          |                                          |           |
   +----------+                                          +-----------+
@@ -80,7 +79,7 @@ Below is a basic diagram describing the main entities involved in the scheme.
                                                         |           |
                                                         |           |
                                                         |           |
-                                                        | Verifier  |
+                                                        |  Verifier |
                                                         |           |
                                                         |           |
                                                         |           |
@@ -112,7 +111,7 @@ committed\_messages
 : A list of messages committed by the Prover to a commitment.
 
 commitment\_proof
-: A zero knowledge proof of correctness of a commitment, consisting from a scalar value, a possibly empty set of scalars (of length equal to the number of committed\_messages, see above) and another scalar, in that order.
+: A zero knowledge proof of correctness of a commitment, consisting of a scalar value, a possibly empty set of scalars (of length equal to the number of committed\_messages, see above) and another scalar, in that order.
 
 secret\_prover\_blind
 : A random scalar used to blind (i.e., randomize) the commitment constructed by the prover.
@@ -127,23 +126,22 @@ Notation defined by [@!I-D.irtf-cfrg-bbs-signatures] applies to this draft.
 Additionally, the following notation and primitives are used:
 
 list.append(elements)
-: Append either a single element or a list of elements to the end of a list, maintaining the same order of the list's elements as well as the appended elements. For example, given `list = [a, b, c]` and `elements = [d, a]`, then `list.append(elements) = [a, b, c, d, a]`.
+: Append either a single element or a list of elements to the end of a list, maintaining the same order of the list's elements as well as the appended elements. For example, given `list = [a, b, c]` and `elements = [d, a]`, the result of `list.append(elements)` will be `[a, b, c, d, a]`.
 
 # Conventions
 
-The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**,
-**SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this
-document, are to be interpreted as described in [@!RFC2119].
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 [@!RFC2119] [@!RFC8174] when, and only when, they appear in all capitals, as shown here.
 
 # BBS Signature Scheme Operations
 
 This document makes use of various operations defined by the BBS Signature Scheme document [@!I-D.irtf-cfrg-bbs-signatures]. For clarity, whenever an operation will be used defined in [@!I-D.irtf-cfrg-bbs-signatures], it will be prefixed by "BBS." (e.g., "BBS.CoreProofGen" etc.). More specifically, the operations used are the following:
 
-- `BBS.CoreVerify`: Refers to the `CoreVerify` operation defined in [Section 3.6.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coreverify) of [@!I-D.irtf-cfrg-bbs-signatures].
-- `BBS.CoreProofGen`: Refers to the `CoreProofGen` operation defined in [Section 3.6.3](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coreproofgen) of [@!I-D.irtf-cfrg-bbs-signatures].
-- `BBS.create_generators`: Refers to the `create_generators` operation defined in [Section 4.1.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-generators-calculation) of [@!I-D.irtf-cfrg-bbs-signatures].
-- `BBS.messages_to_scalars`: Refers to the `messages_to_scalars` operation defined in [Section 4.1.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-messages-to-scalars) of [@!I-D.irtf-cfrg-bbs-signatures].
-- `BBS.get_random_scalars`: Refers to the `get_random_scalars` operation defined in [Section 4.2.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-random-scalars) of [@!I-D.irtf-cfrg-bbs-signatures].
+- `BBS.CoreVerify`: Refers to the `CoreVerify` operation defined in [Section 3.6.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-coreverify) of [@!I-D.irtf-cfrg-bbs-signatures].
+- `BBS.CoreProofGen`: Refers to the `CoreProofGen` operation defined in [Section 3.6.3](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-coreproofgen) of [@!I-D.irtf-cfrg-bbs-signatures].
+- `BBS.create_generators`: Refers to the `create_generators` operation defined in [Section 4.1.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-generators-calculation) of [@!I-D.irtf-cfrg-bbs-signatures].
+- `BBS.messages_to_scalars`: Refers to the `messages_to_scalars` operation defined in [Section 4.1.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-messages-to-scalars) of [@!I-D.irtf-cfrg-bbs-signatures].
+- `BBS.get_random_scalars`: Refers to the `get_random_scalars` operation defined in [Section 4.2.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-random-scalars) of [@!I-D.irtf-cfrg-bbs-signatures].
+- `BBS.hash_to_scalar`: Refers to the `hash_to_scalar` operation defined in [Section 4.2.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-hash-to-scalar) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 # Scheme Definition
 
@@ -151,7 +149,7 @@ This document makes use of various operations defined by the BBS Signature Schem
 
 ### Commitment Computation
 
-This operation is used by the Prover to create `commitment` to a set of messages (`committed_messages`), that they intent to include to the signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`secret_prover_blind`).
+This operation is used by the Prover to create a `commitment` to a set of messages (`committed_messages`), that they intend to include to the blind signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`secret_prover_blind`).
 
 ```
 (commitment_with_proof, secret_prover_blind) = Commit(
@@ -162,7 +160,7 @@ Inputs:
 
 - committed_messages (OPTIONAL), a vector of octet strings. If not
                                  supplied it defaults to the empty
-                                 array "()".
+                                 array ("()").
 - api_id (OPTIONAL), octet string. If not supplied it defaults to the
                      empty octet string ("").
 
@@ -175,7 +173,7 @@ Outputs:
 
 Procedure:
 
-1.  M = length(messages)
+1.  M = length(committed_messages)
 2.  generators = BBS.create_generators(M + 2, api_id)
 3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
 
@@ -198,7 +196,7 @@ Procedure:
 
 ### Commitment Verification
 
-This operation is used by the Signer to verify the correctness of a `commitment_proof` for a supplied `commitment`, over a list of points of G1 called the `blind_generators`, used to generate that commitment.
+This operation is used by the Signer to verify the correctness of a `commitment_proof` for a supplied `commitment`, over a list of points of G1 called the `blind_generators`, used to compute that commitment.
 
 ```
 result = verify_commitment(commitment, commitment_proof,
@@ -237,13 +235,13 @@ Procedure:
 
 ## Blind BBS Signatures Interface
 
-The following section defines a BBS Interface for blind BBS signatures. The identifier of the Interface is defined as `ciphersuite_id || BLIND_H2G_HM2S_`, where `ciphersuite_id` the unique identifier of the BBS ciphersuite used, as is defined in [Section 6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-03.html#name-ciphersuites) of [@!I-D.irtf-cfrg-bbs-signatures]). Each BBS Interface MUST define operations to map the inputted messages to scalar values and to create the generators set, required by the core operations. The inputted messages to the defined Interface will be mapped to scalars using the `messages_to_scalars` operation defined in [Section 4.1.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-messages-to-scalars) of [@!I-D.irtf-cfrg-bbs-signatures]. The generators will be created using the `create_generators` operation defined in Section [Section 4.1.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-generators-calculation) of [@!I-D.irtf-cfrg-bbs-signatures].
+The following section defines a BBS Interface for blind BBS signatures. The identifier of the Interface is defined as `ciphersuite_id || BLIND_H2G_HM2S_`, where `ciphersuite_id` the unique identifier of the BBS ciphersuite used, as is defined in [Section 6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-03.html#name-ciphersuites) of [@!I-D.irtf-cfrg-bbs-signatures]). Each BBS Interface MUST define operations to map the inputted messages to scalar values and to create the generators set, required by the core operations. The inputted messages to the defined Interface will be mapped to scalars using the `messages_to_scalars` operation defined in [Section 4.1.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-messages-to-scalars) of [@!I-D.irtf-cfrg-bbs-signatures]. The generators will be created using the `create_generators` operation defined in Section [Section 4.1.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-generators-calculation) of [@!I-D.irtf-cfrg-bbs-signatures].
 
-Other than the `BlindSign` operation defined in (#blind-signature-generation), which uses the `CoreBlindSign` procedure, defined in (#core-blind-sign), all other interface operations defined in this section use the core operations defined in [Section 3.6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-core-operations) of [@!I-D.irtf-cfrg-bbs-signatures].
+Other than the `BlindSign` operation defined in (#blind-signature-generation), which uses the `CoreBlindSign` procedure, defined in (#core-blind-sign), all other interface operations defined in this section use the core operations defined in [Section 3.6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-core-operations) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 ### Blind Signature Generation
 
-This operation returns a BBS blind signature from a secret key (SK), over a header, a set of messages and optionally a commitment value (see (#terminology)). If supplied, the commitment value must be accompanied by its proof of correctness (`commitment_with_proof`), as the first element outputted by the `Commit` operation ((#commitment-computation)). The issuer can also further randomize the supplied commitment, by supplying a random scalar (`signer_blind`), that MUST be computed as,
+This operation returns a BBS blind signature from a secret key (SK), over a `header`, a set of `messages` and optionally a commitment value (see (#terminology)). If supplied, the commitment value must be accompanied by its proof of correctness (`commitment_with_proof`, as outputted by the `Commit` operation defined in (#commitment-computation)). The issuer can also further randomize the supplied commitment, by supplying a random scalar (`signer_blind`), that MUST be computed as,
 
 ```
 signer_blind = BBS.get_random_scalars(1)
@@ -271,17 +269,17 @@ Inputs:
                                     defaults to the empty string ("").
 - header (OPTIONAL), an octet string containing context and application
                      specific information. If not supplied, it defaults
-                     to an empty string.
+                     to an empty string ("").
 - messages (OPTIONAL), a vector of octet strings. If not supplied, it
-                       defaults to the empty array "()".
+                       defaults to the empty array ("()").
 - signer_blind (OPTIONAL), a random scalar value. If not supplied it
-                           defaults to zero "0".
+                           defaults to zero ("0").
 
 Parameters:
 
 - api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
           ciphersuite_id is defined by the ciphersuite and
-          "BLIND_H2G_HM2S_"is an ASCII string comprised of 15 bytes.
+          "BLIND_H2G_HM2S_"is an ASCII string composed of 15 bytes.
 - (octet_point_length, octet_scalar_length), defined by the ciphersuite.
 
 Outputs:
@@ -323,7 +321,7 @@ Procedure:
 
 This operation validates a blind BBS signature (`signature`), given the Signer's public key (`PK`), a header (`header`), a set of known to the Signer messages (`messages`) and if used, a set of committed messages (`committed_messages`), the `secret_prover_blind` as returned by the `Commit` operation ((#commitment-computation)) and a blind factor supplied by the Signer (`signer_blind`).
 
-This operation makes use of the `CoreVerify` operation as defined in [Section 3.6.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coreverify) of [@!I-D.irtf-cfrg-bbs-signatures].
+This operation makes use of the `CoreVerify` operation as defined in [Section 3.6.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-coreverify) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 ```
 result = Verify(PK, signature, header, messages, committed_messages,
@@ -353,7 +351,7 @@ Parameters:
 
 - api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
           ciphersuite_id is defined by the ciphersuite and
-          "BLIND_H2G_HM2S_"is an ASCII string comprised of 15 bytes.
+          "BLIND_H2G_HM2S_"is an ASCII string composed of 15 bytes.
 
 Outputs:
 
@@ -382,15 +380,15 @@ Procedure:
 
 ### Proof Generation
 
-This operation creates a BBS proof, which is a zero-knowledge, proof-of-knowledge, of a BBS signature, while optionally disclosing any subset of the signed messages. Note that in contrast to the `ProofGen` operation of [@!I-D.irtf-cfrg-bbs-signatures] (see [Section 3.5.3](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-generation-proofgen)), the `ProofGen` operation defined in this section accepts 2 different lists of messages and disclosed indexes, one for the messages known to the Signer (`messages`) and teh corresponding disclosed indexes (`disclosed_indexes`) and one for the messages committed by the Prover (`committed_messages`) and the corresponding disclosed indexes (`disclosed_commitment_indexes`).
+This operation creates a BBS proof, which is a zero-knowledge, proof-of-knowledge, of a BBS signature, while optionally disclosing any subset of the signed messages. Note that in contrast to the `ProofGen` operation of [@!I-D.irtf-cfrg-bbs-signatures] (see [Section 3.5.3](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-generation-proofgen)), the `ProofGen` operation defined in this section accepts 2 different lists of messages and disclosed indexes, one for the messages known to the Signer (`messages`) and the corresponding disclosed indexes (`disclosed_indexes`) and one for the messages committed by the Prover (`committed_messages`) and the corresponding disclosed indexes (`disclosed_commitment_indexes`).
 
-To Verify a proof however, the Verifier expects only one list of messages and one list of disclosed indexes (see (#proof-verification)). This is done to avoid revealing which of the disclosed messages where committed by the Prover and which are known to the Verifier. To this end, the `BlindProofGen` operation defined in this section, uses the `get_disclosed_data` defined in (#present-and-verify-a-bbs-proof) to combine and return the disclosed messages and the disclosed indexes that the prover should present to the Verifier.
+To Verify a proof however, the Verifier expects only one list of messages and one list of disclosed indexes (see (#proof-verification)). This is done to avoid revealing which of the disclosed messages where committed by the Prover and which are known to the Verifier. To this end, the `BlindProofGen` operation defined in this section, uses the `get_disclosed_data` defined in (#present-and-verify-a-bbs-proof) to combine the different messages and indexes lists, to return the disclosed messages and the disclosed indexes that the prover should present to the Verifier.
 
 Lastly, the the operation also expects the `secret_prover_blind` (as returned from the `Commit` operation defined in (#commitment-computation)) and `signer_blind` (as inputted in the `BlindSign` operation defined in (#blind-signature-generation)) values. If the BBS signature is generated using a commitment value, then the `secret_prover_blind` returned by the `Commit` operation used to generate the commitment should be provided to the `ProofGen` operation (otherwise the resulting proof will be invalid).
 
 Note that the `BlindProofGen` operation defined in this section returns both the generated proof as an octet string, together with a vector (`disclosed_data`) containing all the disclosed messages and their indexes, that would be later revealed to the proof Verifier.
 
-This operation makes use of the `CoreProofGen` operation as defined in [Section 3.6.3](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-04.html#name-coreproofgen) of [@!I-D.irtf-cfrg-bbs-signatures].
+This operation makes use of the `CoreProofGen` operation as defined in [Section 3.6.3](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-coreproofgen) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 ```
 (proof, disclosed_msgs, disclosed_idxs)
@@ -441,7 +439,7 @@ Parameters:
 
 - api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
           ciphersuite_id is defined by the ciphersuite and
-          "BLIND_H2G_HM2S_"is an ASCII string comprised of 15 bytes.
+          "BLIND_H2G_HM2S_"is an ASCII string composed of 15 bytes.
 
 Outputs:
 
@@ -477,7 +475,7 @@ Procedure:
                                   committed_messages,
                                   disclosed_indexes,
                                   disclosed_commitment_indexes,
-                                  commitment_used)
+                                  secret_prover_blind)
 8.  if disclosed_data is INVALID, return INVALID.
 9.  (disclosed_msgs, disclosed_idxs) = disclosed_data
 
@@ -493,10 +491,10 @@ To verify a proof generated by the `BlindProofGen` operation defined in (#proof-
 ```
 api_id = ciphersuite_id || "BLIND_H2G_HM2S_", where ciphersuite_id is
          defined by the ciphersuite and "BLIND_H2G_HM2S_"is an ASCII
-         string comprised of 15 bytes.
+         string composed of 15 bytes.
 ```
 
-The purpose of the above, is to reduce the information a Verifier may get, regarding which of the disclosed messages where committed by the Prover and which where known to the Issuer. For this purpose, the Prover MUST follow the procedure described in (#present-and-verify-a-bbs-proof) to prepare the data that will be supplied to the proof Verifier.
+The purpose of the above is to reduce the information a Verifier may get, regarding which of the disclosed messages were committed by the Prover and which were known to the Issuer. For this purpose, the Prover MUST follow the procedure described in (#present-and-verify-a-bbs-proof) to prepare the data that will be supplied to the proof Verifier.
 
 ## Core Operations
 
@@ -539,7 +537,7 @@ Parameters:
 
 - api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
           ciphersuite_id is defined by the ciphersuite and
-          "BLIND_H2G_HM2S_"is an ASCII string comprised of 15 bytes.
+          "BLIND_H2G_HM2S_"is an ASCII string composed of 15 bytes.
 
 Outputs:
 
@@ -550,7 +548,7 @@ Definitions:
 
 1. signature_dst, an octet string representing the domain separation
                   tag: api_id || "H2S_" where "H2S_" is an ASCII string
-                  comprised of 4 bytes.
+                  composed of 4 bytes.
 
 Deserialization:
 
@@ -566,16 +564,17 @@ Deserialization:
 4. (commit, M) = commit_res
 
 5. Q_1 = generators[0]
-6. commitment_with_proof != "", Q_2 = generators[1]
+6. Q_2 = Identity_G1
+7. if commitment_with_proof != "", Q_2 = generators[1]
 
-7. (H_1, ..., H_L) = generators[M + 1..M + L + 1]
+8. (H_1, ..., H_L) = generators[M + 1..M + L + 1]
 
 Procedure:
 
 1. domain = calculate_domain(PK, generators, header, api_id)
 
 2. e_octs = serialize((SK, domain, msg_1, ..., msg_L, signer_blind))
-3. e = hash_to_scalar(e_octs || commitment_with_proof, signature_dst)
+3. e = BBS.hash_to_scalar(e_octs || commitment_with_proof, signature_dst)
 
 // if a commitment is not supplied, Q_2 = Identity_G1, meaning that
 // signer_blind will be ignored.
@@ -590,13 +589,14 @@ Procedure:
 
 # Present and Verify a BBS Proof
 
-To avoid revealing to the proof Verifier which messages are committed to the signature, and which where known to the Signer, after calculating a BBS proof, the Prover will need to combine the disclosed committed messages as well as the disclosed messages known to the Signer to a single disclosed messages list. The same holds for the disclosed message indexes, where the ones corresponding to committed messages and the ones corresponding to messages known by the Signer should be combined together. To do that, the Prover MUST follow the following operation.
+To avoid revealing which messages are committed to the signature, and which were known to the Signer to the proof Verifier, after calculating a BBS proof, the Prover will need to combine the disclosed committed messages as well as the disclosed messages known to the Signer to a single disclosed messages list. The same holds for the disclosed message indexes, where the ones corresponding to committed messages and the ones corresponding to messages known by the Signer should be combined together.
 
 ```
 disclosed_data = get_disclosed_data(messages,
                                     committed_messages,
                                     disclosed_indexes,
-                                    disclosed_commitment_indexes)
+                                    disclosed_commitment_indexes,
+                                    secret_prover_blind)
 
 Inputs:
 
@@ -622,28 +622,31 @@ Outputs
 
 Deserialization:
 
-1. L = length(disclosed_indexes)
+1. L = length(messages)
 2. M = length(committed_messages)
 3. (i1, ..., iL) = disclosed_indexes
 4. (j1, ...., jL) = disclosed_commitment_indexes
 
-5. if length(messages) < L, return INVALID
-6. if length(committed_messages) < M, return INVALID
+5. if length(disclosed_indexes) > L, return INVALID
+6. if length(disclosed_commitment_indexes) > M, return INVALID
 
 Procedure:
 
+// determine if a commitment was used
+1. if secret_prover_blind == 0, comm_used = 0, else comm_used = 1
+
 // combine the disclosed indexes
-3. indexes = ()
-4. for i in disclosed_commitment_indexes: indexes.append(i + 1)
-5. for j in disclosed_indexes: indexes.append(M + j + 1)
+2. indexes = ()
+3. for i in disclosed_commitment_indexes: indexes.append(i + comm_used)
+4. for j in disclosed_indexes: indexes.append(M + j + comm_used)
 
-// combine the revealed messages
-6. disclosed_messages = (messages[i1], ..., messages[iL])
-7. disclosed_committed_messages = (committed_messages[j1], ...
+// combine the disclosed messages
+5. disclosed_messages = (messages[i1], ..., messages[iL])
+6. disclosed_committed_messages = (committed_messages[j1], ...
                                             ..., committed_messages[jM])
-8. disclosed_messages.append(disclosed_committed_messages)
+7. disclosed_messages.append(disclosed_committed_messages)
 
-9. return (disclosed_messages, indexes)
+8. return (disclosed_messages, indexes)
 ```
 
 # Utilities
@@ -667,7 +670,7 @@ Definition:
 - blind_challenge_dst, an octet string representing the domain
                        separation tag: api_id || "H2S_" where
                        ciphersuite_id is defined by the ciphersuite and
-                       "H2S_" is an ASCII string comprised of 4 bytes.
+                       "H2S_" is an ASCII string composed of 4 bytes.
 
 Deserialization:
 
@@ -679,7 +682,7 @@ Procedure:
 1. c_arr = (C, Cbar, M)
 2. c_arr.append(generators)
 3. c_octs = serialize(c_arr)
-4. return hash_to_scalar(c_octs, blind_challenge_dst)
+4. return BBS.hash_to_scalar(c_octs, blind_challenge_dst)
 ```
 
 ##  Commitment Validation and Deserialization
@@ -722,7 +725,7 @@ Procedure:
 6.  if length(generators) < M + 1, return INVALID
 7.  blind_generators = generators[1..M + 1]
 
-8.  validation_res = verify_commitment(COMMIT, commit_proof,
+8.  validation_res = verify_commitment(commit, commit_proof,
                                                blind_generators, api_id)
 9.  if validation_res is INVALID, return INVALID
 10. (commitment, M)
@@ -802,7 +805,19 @@ Procedure:
 
 # Security Considerations
 
-// TODO
+Security considerations detailed in [Section 6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-security-considerations) of [@!I-D.irtf-cfrg-bbs-signatures] apply to this draft as well.
+
+## Prover Blind Factor
+
+The random scalar value `secret_prover_blind` calculated and returned by the `Commit` operation is responsible for "hiding" the committed messages (otherwise, in many practical applications, the Signer may be able to retrieve them). Furthermore, it guarantees that the entity generating the BBS proof (see `BlindProofGen` defined in (#proof-generation)) has knowledge of that factor. As a result, the `secret_prover_blind` MUST remain private by the Prover and it MUST be generated using a cryptographically secure pseudo-random number generator. See [Section 6.7](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-randomness-requirements) of [@!I-D.irtf-cfrg-bbs-signatures] on recommendations and requirements for implementing the `BBS.get_random_scalars` operation (which is used to calculate the `secret_prover_blind` value).
+
+## Key Binding
+
+One natural use case for the blind signatures extension of the BBS scheme is key binding. In the context of BBS Signatures, key binding guarantees that only entities in control of a specific private key can compute BBS proofs. This can be achieved by committing to the private key prior to issuance, resulting to a BBS signature that includes that key as one of the signed messages. Creating a BBS proof from that signature will then require knowledge of that key (similar to any signed message). The Prover MUST NOT disclose that key as part of a proof generation procedure. Note also that the `secret_prover_blind` value returned by the `Commit` operation defined in (#commitment-computation) (see (#prover-blind-factor)), has a similar property, i.e., it's knowledge is required to generate a proof from a blind signature. Many applications however, requiring key binding, mandate that the same private key is used among multiple signatures, whereas the `secret_prover_blind` is uniquely generated for each blind signature issuance request. In those cases, a commitment to a private key must be used, as described above.
+
+## Commitment Randomization
+
+A commitment is "randomized" using the `secret_prover_blind` random value. The Signer MAY elect to re-randomize a commitment by using it's own randomness. This can be helpful for applications that need to guarantee the uniqueness of each commitment (and of the resulting signatures) supplied by (untrusted) Provers. Examples include voting systems, where each unique signature will provide a single vote. To re-randomize a commitment, the Signer can provide the `signer_blind` input to the `BlindSign` operation defined in (#blind-signature-generation). If used, the `signer_blind` MUST be computed using the `BBS.get_random_scalars` operation. In contrast with the `secret_prover_blind` value however, the `signer_blind` doesn't need to be secret. The Signer will need to return it to the Prover, who requires it to verify the signature and generate the proofs.
 
 # Ciphersuites
 
@@ -870,6 +885,10 @@ committed_messages = {{ $signatureFixtures.bls12-381-shake-256.signature001.comm
 secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature001.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature001.signerBlind }}
 
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-shake-256.signature001.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-shake-256.signature001.trace.domain }}
+
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature001.signature }}
 ```
 
@@ -900,6 +919,10 @@ committed_message_5 = {{ $signatureFixtures.bls12-381-shake-256.signature002.com
 
 secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature002.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature002.signerBlind }}
+
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-shake-256.signature002.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-shake-256.signature002.trace.domain }}
 
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature002.signature }}
 ```
@@ -936,6 +959,10 @@ committed_message = {{ $signatureFixtures.bls12-381-shake-256.signature003.commi
 
 secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature003.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature003.signerBlind }}
+
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-shake-256.signature003.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-shake-256.signature003.trace.domain }}
 
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature003.signature }}
 ```
@@ -977,6 +1004,10 @@ committed_message_5 = {{ $signatureFixtures.bls12-381-shake-256.signature004.com
 secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature004.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature004.signerBlind }}
 
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-shake-256.signature004.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-shake-256.signature004.trace.domain }}
+
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature004.signature }}
 ```
 
@@ -1017,6 +1048,10 @@ committed_message_5 = {{ $signatureFixtures.bls12-381-shake-256.signature005.com
 secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature005.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature005.signerBlind }}
 
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-shake-256.signature005.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-shake-256.signature005.trace.domain }}
+
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature005.signature }}
 ```
 
@@ -1048,6 +1083,10 @@ committed_message = {{ $signatureFixtures.bls12-381-shake-256.signature006.commi
 
 secret_prover_blind = {{ $signatureFixtures.bls12-381-shake-256.signature006.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-shake-256.signature006.signerBlind }}
+
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-shake-256.signature006.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-shake-256.signature006.trace.domain }}
 
 signature = {{ $signatureFixtures.bls12-381-shake-256.signature006.signature }}
 ```
@@ -1102,6 +1141,21 @@ signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof001.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof001.disclosedData }}
 
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.random_scalars.m_tilde_scalars[0] }}
+
 proof = {{ $proofFixtures.bls12-381-shake-256.proof001.proof }}
 ```
 
@@ -1152,6 +1206,23 @@ proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof002.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof002.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof002.disclosedData }}
+
+Proof trace:
+   T1 = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.T1 }}
+   T2 = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.T2 }}
+   domain = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.domain }}
+
+   // random scalars
+   r1 = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.random_scalars.r1 }}
+   r2 = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.random_scalars.r2 }}
+   e~ = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.random_scalars.e_tilde }}
+   r1~ = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.random_scalars.r1_tilde }}
+   r3~ = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.random_scalars.r3_tilde }}
+
+   // m_tilde_scalars
+   m~_1 = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.random_scalars.m_tilde_scalars[0] }}
+   m~_2 = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.random_scalars.m_tilde_scalars[1] }}
+   m~_3 = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.random_scalars.m_tilde_scalars[2] }}
 
 proof = {{ $proofFixtures.bls12-381-shake-256.proof002.proof }}
 ```
@@ -1204,6 +1275,26 @@ signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof003.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof003.disclosedData }}
 
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_5 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.m_tilde_scalars[4] }}
+    m~_6 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.random_scalars.m_tilde_scalars[5] }}
+
 proof = {{ $proofFixtures.bls12-381-shake-256.proof003.proof }}
 ```
 
@@ -1254,6 +1345,28 @@ proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof004.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof004.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof004.disclosedData }}
+
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_5 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.m_tilde_scalars[4] }}
+    m~_6 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.m_tilde_scalars[5] }}
+    m~_7 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.m_tilde_scalars[6] }}
+    m~_8 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.random_scalars.m_tilde_scalars[7] }}
 
 proof = {{ $proofFixtures.bls12-381-shake-256.proof004.proof }}
 ```
@@ -1306,6 +1419,31 @@ signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof005.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof005.disclosedData }}
 
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_5 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[4] }}
+    m~_6 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[5] }}
+    m~_7 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[6] }}
+    m~_8 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[7] }}
+    m~_9 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[8] }}
+    m~_10 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[9] }}
+    m~_11 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.random_scalars.m_tilde_scalars[10] }}
+
 proof = {{ $proofFixtures.bls12-381-shake-256.proof005.proof }}
 ```
 
@@ -1356,6 +1494,33 @@ proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof006.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof006.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof006.disclosedData }}
+
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_6 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[5] }}
+    m~_5 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[4] }}
+    m~_8 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[7] }}
+    m~_7 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[6] }}
+    m~_9 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[8] }}
+    m~_10 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[9] }}
+    m~_11 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[10] }}
+    m~_12 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[11] }}
+    m~_13 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.random_scalars.m_tilde_scalars[12] }}
 
 proof = {{ $proofFixtures.bls12-381-shake-256.proof006.proof }}
 ```
@@ -1408,6 +1573,36 @@ signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof007.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof007.disclosedData }}
 
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_5 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[4] }}
+    m~_6 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[5] }}
+    m~_7 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[6] }}
+    m~_8 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[7] }}
+    m~_9 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[8] }}
+    m~_10 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[9] }}
+    m~_11 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[10] }}
+    m~_12 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[11] }}
+    m~_13 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[12] }}
+    m~_14 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[13] }}
+    m~_15 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[14] }}
+    m~_16 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.random_scalars.m_tilde_scalars[15] }}
+
 proof = {{ $proofFixtures.bls12-381-shake-256.proof007.proof }}
 ```
 
@@ -1454,6 +1649,25 @@ proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof008.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof008.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof008.disclosedData }}
+
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_5 = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.random_scalars.m_tilde_scalars[4] }}
 
 proof = {{ $proofFixtures.bls12-381-shake-256.proof008.proof }}
 ```
@@ -1518,6 +1732,10 @@ committed_messages = {{ $signatureFixtures.bls12-381-sha-256.signature001.commit
 secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature001.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature001.signerBlind }}
 
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-sha-256.signature001.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-sha-256.signature001.trace.domain }}
+
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature001.signature }}
 ```
 
@@ -1548,6 +1766,10 @@ committed_message_5 = {{ $signatureFixtures.bls12-381-sha-256.signature002.commi
 
 secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature002.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature002.signerBlind }}
+
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-sha-256.signature002.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-sha-256.signature002.trace.domain }}
 
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature002.signature }}
 ```
@@ -1584,6 +1806,10 @@ committed_message = {{ $signatureFixtures.bls12-381-sha-256.signature003.committ
 
 secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature003.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature003.signerBlind }}
+
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-sha-256.signature003.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-sha-256.signature003.trace.domain }}
 
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature003.signature }}
 ```
@@ -1625,6 +1851,10 @@ committed_message_5 = {{ $signatureFixtures.bls12-381-sha-256.signature004.commi
 secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature004.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature004.signerBlind }}
 
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-sha-256.signature004.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-sha-256.signature004.trace.domain }}
+
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature004.signature }}
 ```
 
@@ -1665,6 +1895,10 @@ committed_message_5 = {{ $signatureFixtures.bls12-381-sha-256.signature005.commi
 secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature005.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature005.signerBlind }}
 
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-sha-256.signature005.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-sha-256.signature005.trace.domain }}
+
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature005.signature }}
 ```
 
@@ -1696,6 +1930,10 @@ committed_message = {{ $signatureFixtures.bls12-381-sha-256.signature006.committ
 
 secret_prover_blind = {{ $signatureFixtures.bls12-381-sha-256.signature006.proverBlind }}
 signer_blind = {{ $signatureFixtures.bls12-381-sha-256.signature006.signerBlind }}
+
+Signature trace:
+    B = {{ $signatureFixtures.bls12-381-sha-256.signature006.trace.B }}
+    domain = {{ $signatureFixtures.bls12-381-sha-256.signature006.trace.domain }}
 
 signature = {{ $signatureFixtures.bls12-381-sha-256.signature006.signature }}
 ```
@@ -1750,6 +1988,21 @@ signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof001.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof001.disclosedData }}
 
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.random_scalars.m_tilde_scalars[0] }}
+
 proof = {{ $proofFixtures.bls12-381-sha-256.proof001.proof }}
 ```
 
@@ -1800,6 +2053,23 @@ proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof002.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof002.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof002.disclosedData }}
+
+Proof trace:
+   T1 = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.T1 }}
+   T2 = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.T2 }}
+   domain = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.domain }}
+
+   // random scalars
+   r1 = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.random_scalars.r1 }}
+   r2 = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.random_scalars.r2 }}
+   e~ = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.random_scalars.e_tilde }}
+   r1~ = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.random_scalars.r1_tilde }}
+   r3~ = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.random_scalars.r3_tilde }}
+
+   // m_tilde_scalars
+   m~_1 = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.random_scalars.m_tilde_scalars[0] }}
+   m~_2 = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.random_scalars.m_tilde_scalars[1] }}
+   m~_3 = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.random_scalars.m_tilde_scalars[2] }}
 
 proof = {{ $proofFixtures.bls12-381-sha-256.proof002.proof }}
 ```
@@ -1852,6 +2122,26 @@ signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof003.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof003.disclosedData }}
 
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_5 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.m_tilde_scalars[4] }}
+    m~_6 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.random_scalars.m_tilde_scalars[5] }}
+
 proof = {{ $proofFixtures.bls12-381-sha-256.proof003.proof }}
 ```
 
@@ -1902,6 +2192,28 @@ proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof004.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof004.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof004.disclosedData }}
+
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_5 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.m_tilde_scalars[4] }}
+    m~_6 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.m_tilde_scalars[5] }}
+    m~_7 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.m_tilde_scalars[6] }}
+    m~_8 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.random_scalars.m_tilde_scalars[7] }}
 
 proof = {{ $proofFixtures.bls12-381-sha-256.proof004.proof }}
 ```
@@ -1954,6 +2266,31 @@ signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof005.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof005.disclosedData }}
 
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_5 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[4] }}
+    m~_6 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[5] }}
+    m~_7 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[6] }}
+    m~_8 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[7] }}
+    m~_9 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[8] }}
+    m~_10 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[9] }}
+    m~_11 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.random_scalars.m_tilde_scalars[10] }}
+
 proof = {{ $proofFixtures.bls12-381-sha-256.proof005.proof }}
 ```
 
@@ -2004,6 +2341,33 @@ proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof006.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof006.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof006.disclosedData }}
+
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_6 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[5] }}
+    m~_5 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[4] }}
+    m~_8 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[7] }}
+    m~_7 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[6] }}
+    m~_9 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[8] }}
+    m~_10 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[9] }}
+    m~_11 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[10] }}
+    m~_12 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[11] }}
+    m~_13 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.random_scalars.m_tilde_scalars[12] }}
 
 proof = {{ $proofFixtures.bls12-381-sha-256.proof006.proof }}
 ```
@@ -2056,6 +2420,36 @@ signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof007.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof007.disclosedData }}
 
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_5 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[4] }}
+    m~_6 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[5] }}
+    m~_7 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[6] }}
+    m~_8 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[7] }}
+    m~_9 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[8] }}
+    m~_10 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[9] }}
+    m~_11 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[10] }}
+    m~_12 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[11] }}
+    m~_13 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[12] }}
+    m~_14 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[13] }}
+    m~_15 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[14] }}
+    m~_16 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.random_scalars.m_tilde_scalars[15] }}
+
 proof = {{ $proofFixtures.bls12-381-sha-256.proof007.proof }}
 ```
 
@@ -2102,6 +2496,25 @@ proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof008.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof008.signerBlind }}
 
 (disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof008.disclosedData }}
+
+Proof trace:
+    T1 = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.T1 }}
+    T2 = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.T2 }}
+    domain = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.domain }}
+
+    // random scalars
+    r1 = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.random_scalars.r1 }}
+    r2 = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.random_scalars.r2 }}
+    e~ = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.random_scalars.e_tilde }}
+    r1~ = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.random_scalars.r1_tilde }}
+    r3~ = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.random_scalars.r3_tilde }}
+
+    // m_tilde_scalars
+    m~_1 = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.random_scalars.m_tilde_scalars[0] }}
+    m~_2 = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.random_scalars.m_tilde_scalars[1] }}
+    m~_3 = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.random_scalars.m_tilde_scalars[2] }}
+    m~_4 = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.random_scalars.m_tilde_scalars[3] }}
+    m~_5 = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.random_scalars.m_tilde_scalars[4] }}
 
 proof = {{ $proofFixtures.bls12-381-sha-256.proof008.proof }}
 ```

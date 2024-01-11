@@ -4,7 +4,7 @@
     "SEED": "3.141592653589793238462643383279",
     "commit": {
       "DST": "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_COMMIT_MOCK_RANDOM_SCALARS_DST_",
-      "count": 3
+      "count": 2
     },
     "signature": {
       "DST": "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_H2G_HM2S_SIGNATURE_MOCK_RANDOM_SCALARS_DST_",
@@ -15,18 +15,18 @@
     "secretKey": "60e55110f76883a13d030b2f6bd11883422d5abde717569fc0731f51237169fc",
     "publicKey": "a820f230f6ae38503b86c70dc50b61c58a77e45c39ab25c0652bbaa8fa136f2851bd4781c9dcde39fc9d1d52c9e60268061e7d7632171d91aa8d460acee0e96f1e7c4cfb12d3ff9ab5d5dc91c277db75c845d649ef3c4f63aebc364cd55ded0c"
   },
-  "commitmentWithProof": "b461b388bdc3e2d82bf0ef1e694c74b927b2508077accc4715fd2de4dc4861f5b9bec8cdab35b4ae365935d6f0fc8839326851166bf215804450927fc708f253fda06e46161801b51f76ff6ea86af73a0c6bda40ced7a9b7e1f5f156865b9b982299221a7d0a745fafb8a5b5c606750562eb2de82f94e0fa5cd051af81db21b033f215419c92d79da0ae0425972f47c9",
+  "commitmentWithProof": "8bd94b05cd4e006145bc974cf5cdcc80e544a8c4624b0a7f6a5509430c79be788be86536b725ea93dd0a035b4ef822631dc4e8c1a02cc212cc9f914ecfab3470901d5d1573e4d03653af76ebf3bd891a226635ac82ee6cc94bc20135471365d2bb278e21eae8e71661ecd3f6301c7ba3",
   "header": "11223344556677889900aabbccddeeff",
-  "messages": [
-    ""
-  ],
-  "committedMessages": [
-    ""
-  ],
-  "proverBlind": "3ba0a2583bc7229fa9f2ae3a6697091032947c3a48f302b7fd2b08ca9d193041",
+  "messages": [],
+  "committedMessages": [],
+  "proverBlind": "1b6f406b17aaf92dc7deb911c7cae49756a6623b5c385b5ae6214d7e3d9597f7",
   "signerBlind": "10e75ca49d242390896d9dd943b97ff23b8cb780bf27df185f51b33abaaa94e2",
-  "signature": "b633d10e485e25bf8ac49aa4b8f68c7d7fe7f88c84870d6316a05a65fd48eef279884e740d067847f2ed8c8936b1f2132e9df8565b12fec544a4e303be0107efbce1a774efa3cbbf25bb3bfa637fcbd5",
+  "signature": "a001fb708fb48dc1c02c84114edfe4cce81a80c067159050c29b903680621c830e93213872305957c25122de78194a913165b2ffdd806e3152c4e2d712c396bd2619028cce1857d07ca96a9f5157f4c8",
   "result": {
     "valid": true
+  },
+  "trace": {
+    "B": "aa963d9eae5bf642b7b080c9b6cf33f19564e501638d85a0a1f862a86ee0b26e992fe52bbfc103c82038a41146994ede",
+    "domain": "1666eb9faaa4d028797e16a9e89478b067615039c763c931c3df5012ef153b33"
   }
 }
