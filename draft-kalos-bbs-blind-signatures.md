@@ -574,7 +574,8 @@ Procedure:
 1. domain = calculate_domain(PK, generators, header, api_id)
 
 2. e_octs = serialize((SK, domain, msg_1, ..., msg_L, signer_blind))
-3. e = BBS.hash_to_scalar(e_octs || commitment_with_proof, signature_dst)
+3. e = BBS.hash_to_scalar(e_octs || commitment_with_proof,
+                                                      signature_dst)
 
 // if a commitment is not supplied, Q_2 = Identity_G1, meaning that
 // signer_blind will be ignored.
