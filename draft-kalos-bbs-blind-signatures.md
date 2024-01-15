@@ -47,7 +47,7 @@ Furthermore, applications like Privacy Pass ([@I-D.ietf-privacypass-protocol]) m
 
 The presented protocol, compared to the scheme defined in [@!I-D.irtf-cfrg-bbs-signatures], introduces an additional communication step between the Prover and the Signer. The Prover will start by constructing a "hiding" commitment to the messages they want to get a signature on (i.e., a commitment which reveals no information about the committed values), together with a proof of correctness of that commitment. They will send the (commitment, proof) pair to the Signer, who, upon receiving the pair, will attempt to verify the commitment's proof of correctness. If successful, they will use it in generating a BBS signature over the messages committed by the Prover, including their own messages if any.
 
-This document, other than defining the operation for creating and verifying a commitment, it also details a core signature generation operation, different from the one presented in [@!I-D.irtf-cfrg-bbs-signatures], meant to handle the computation of the blind signature. The document will also define a new BBS Interface, which is needed to handle the different inputs (i.e., messages committed by the Prover or chosen by the Signer etc.,). The signature verification and proof generation core cryptographic operations however, will work as described in [@!I-D.irtf-cfrg-bbs-signatures]. To further facilitate deployment, both the exposed interface as well as the core cryptographic operation of proof verification will be the same as the one detailed in [@!I-D.irtf-cfrg-bbs-signatures].
+This document, in addition to defining the operation for creating and verifying a commitment, also details a core signature generation operation, different from the one presented in [@!I-D.irtf-cfrg-bbs-signatures], meant to handle the computation of the blind signature. The document will also define a new BBS Interface, which is needed to handle the different inputs, i.e., messages committed by the Prover or chosen by the Signer etc... The signature verification and proof generation core cryptographic operations however, will work as described in [@!I-D.irtf-cfrg-bbs-signatures]. To further facilitate deployment, both the exposed interface as well as the core cryptographic operation of proof verification will be the same as the one detailed in [@!I-D.irtf-cfrg-bbs-signatures].
 
 Below is a basic diagram describing the main entities involved in the scheme.
 !---
@@ -149,7 +149,7 @@ This document makes use of various operations defined by the BBS Signature Schem
 
 ### Commitment Computation
 
-This operation is used by the Prover to create a `commitment` to a set of messages (`committed_messages`), that they intend to include to the blind signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`secret_prover_blind`).
+This operation is used by the Prover to create a `commitment` to a set of messages (`committed_messages`), that they intend to include in the blind signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`secret_prover_blind`).
 
 ```
 (commitment_with_proof, secret_prover_blind) = Commit(
@@ -235,7 +235,7 @@ Procedure:
 
 ## Blind BBS Signatures Interface
 
-The following section defines a BBS Interface for blind BBS signatures. The identifier of the Interface is defined as `ciphersuite_id || BLIND_H2G_HM2S_`, where `ciphersuite_id` the unique identifier of the BBS ciphersuite used, as is defined in [Section 6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-03.html#name-ciphersuites) of [@!I-D.irtf-cfrg-bbs-signatures]). Each BBS Interface MUST define operations to map the inputted messages to scalar values and to create the generators set, required by the core operations. The inputted messages to the defined Interface will be mapped to scalars using the `messages_to_scalars` operation defined in [Section 4.1.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-messages-to-scalars) of [@!I-D.irtf-cfrg-bbs-signatures]. The generators will be created using the `create_generators` operation defined in Section [Section 4.1.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-generators-calculation) of [@!I-D.irtf-cfrg-bbs-signatures].
+The following section defines a BBS Interface for blind BBS signatures. The identifier of the Interface is defined as `ciphersuite_id || BLIND_H2G_HM2S_`, where `ciphersuite_id` the unique identifier of the BBS ciphersuite used, as is defined in [Section 6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-03.html#name-ciphersuites) of [@!I-D.irtf-cfrg-bbs-signatures]). Each BBS Interface MUST define operations to map the input messages to scalar values and to create the generator set, required by the core operations. The input messages to the defined Interface will be mapped to scalars using the `messages_to_scalars` operation defined in [Section 4.1.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-messages-to-scalars) of [@!I-D.irtf-cfrg-bbs-signatures]. The generators will be created using the `create_generators` operation defined in Section [Section 4.1.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-generators-calculation) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 Other than the `BlindSign` operation defined in (#blind-signature-generation), which uses the `CoreBlindSign` procedure, defined in (#core-blind-sign), all other interface operations defined in this section use the core operations defined in [Section 3.6](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-core-operations) of [@!I-D.irtf-cfrg-bbs-signatures].
 
@@ -319,7 +319,7 @@ Procedure:
 
 ### Blind Signature Verification
 
-This operation validates a blind BBS signature (`signature`), given the Signer's public key (`PK`), a header (`header`), a set of known to the Signer messages (`messages`) and if used, a set of committed messages (`committed_messages`), the `secret_prover_blind` as returned by the `Commit` operation ((#commitment-computation)) and a blind factor supplied by the Signer (`signer_blind`).
+This operation validates a blind BBS signature (`signature`), given the Signer's public key (`PK`), a header (`header`), a set of, known to the Signer, messages (`messages`) and if used, a set of committed messages (`committed_messages`), the `secret_prover_blind` as returned by the `Commit` operation ((#commitment-computation)) and a blind factor supplied by the Signer (`signer_blind`).
 
 This operation makes use of the `CoreVerify` operation as defined in [Section 3.6.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-coreverify) of [@!I-D.irtf-cfrg-bbs-signatures].
 
@@ -373,7 +373,7 @@ Procedure:
 
 5. generators = BBS.create_generators(length(message_scalars) + 1,
                                                                  api_id)
-6. res = BBS.CoreVerify(PK, signature, generators, header, messages,
+6. res = BBS.CoreVerify(PK, signature, generators, header, message_scalars,
                                                                  api_id)
 7. return res
 ```
@@ -590,7 +590,7 @@ Procedure:
 
 # Present and Verify a BBS Proof
 
-To avoid revealing which messages are committed to the signature, and which were known to the Signer to the proof Verifier, after calculating a BBS proof, the Prover will need to combine the disclosed committed messages as well as the disclosed messages known to the Signer to a single disclosed messages list. The same holds for the disclosed message indexes, where the ones corresponding to committed messages and the ones corresponding to messages known by the Signer should be combined together.
+To avoid revealing which messages are committed to the signature, and which were known to the Signer, the proof Verifier, after calculating a BBS proof, the Prover will need to combine the disclosed committed messages as well as the disclosed messages known to the Signer to a single disclosed messages list. The same holds for the disclosed message indexes, where the ones corresponding to committed messages and the ones corresponding to messages known by the Signer should be combined together.
 
 ```
 disclosed_data = get_disclosed_data(messages,
@@ -775,7 +775,7 @@ Parameters:
 Outputs:
 
 - commitment, a commitment in the form (C, proof), where C a point of G1
-              and proof a vector comprising of a scalar, a possibly
+              and a proof vector comprising of a scalar, a possibly
               empty vector of scalars and another scalar in that order.
 
 Procedure:
@@ -814,7 +814,7 @@ The random scalar value `secret_prover_blind` calculated and returned by the `Co
 
 ## Key Binding
 
-One natural use case for the blind signatures extension of the BBS scheme is key binding. In the context of BBS Signatures, key binding guarantees that only entities in control of a specific private key can compute BBS proofs. This can be achieved by committing to the private key prior to issuance, resulting to a BBS signature that includes that key as one of the signed messages. Creating a BBS proof from that signature will then require knowledge of that key (similar to any signed message). The Prover MUST NOT disclose that key as part of a proof generation procedure. Note also that the `secret_prover_blind` value returned by the `Commit` operation defined in (#commitment-computation) (see (#prover-blind-factor)), has a similar property, i.e., it's knowledge is required to generate a proof from a blind signature. Many applications however, requiring key binding, mandate that the same private key is used among multiple signatures, whereas the `secret_prover_blind` is uniquely generated for each blind signature issuance request. In those cases, a commitment to a private key must be used, as described above.
+One natural use case for the blind signatures extension of the BBS scheme is key binding. In the context of BBS Signatures, key binding guarantees that only entities in control of a specific private key can compute BBS proofs. This can be achieved by committing to the private key prior to issuance, resulting in a BBS signature that includes that key as one of the signed messages. Creating a BBS proof from that signature will then require knowledge of that key (similar to any signed message). The Prover MUST NOT disclose that key as part of a proof generation procedure. Note also that the `secret_prover_blind` value returned by the `Commit` operation defined in (#commitment-computation) (see (#prover-blind-factor)), has a similar property, i.e., it's knowledge is required to generate a proof from a blind signature. Many applications however, requiring key binding, mandate that the same private key is used among multiple signatures, whereas the `secret_prover_blind` is uniquely generated for each blind signature issuance request. In those cases, a commitment to a private key must be used, as described above.
 
 ## Commitment Randomization
 
@@ -822,7 +822,7 @@ A commitment is "randomized" using the `secret_prover_blind` random value. The S
 
 # Ciphersuites
 
-This document uses the `BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_` and `BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_` defined in [Section 6.2.1](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-bls12-381-shake-256) and [Section 6.2.2](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-bls12-381-sha-256) correspondingly, of [@!I-D.irtf-cfrg-bbs-signatures].
+This document uses the `BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_` and `BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_` defined in [Section 7.2.1](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-bls12-381-shake-256) and [Section 7.2.2](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-bls12-381-sha-256) correspondingly, of [@!I-D.irtf-cfrg-bbs-signatures].
 
 # Test Vectors
 
