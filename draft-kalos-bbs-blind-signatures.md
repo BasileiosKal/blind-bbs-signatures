@@ -781,7 +781,7 @@ Outputs:
 Procedure:
 
 1.  commit_len_floor = octet_point_length + 2 * octet_scalar_length
-2.  if length(commitment) < commit_len_floor, return INVALID
+2.  if length(commitment_octs) < commit_len_floor, return INVALID
 
 3.  C_octets = commitment_octs[0..(octet_point_length - 1)]
 4.  C = octets_to_point_g1(C_octets)
@@ -792,7 +792,7 @@ Procedure:
 8.  index = octet_point_length
 9.  while index < length(commitment_octs):
 10.     end_index = index + octet_scalar_length - 1
-11.     s_j = OS2IP(proof_octets[index..end_index])
+11.     s_j = OS2IP(commitment_octets[index..end_index])
 12.     if s_j = 0 or if s_j >= r, return INVALID
 13.     index += octet_scalar_length
 14.     j += 1
