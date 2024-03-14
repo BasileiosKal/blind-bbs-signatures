@@ -456,7 +456,7 @@ Deserialization:
 4. for i in disclosed_indexes, if i < 0 or i >= L, return INVALID
 5. if length(disclosed_commitment_indexes) > M, return INVALID
 6. for j in disclosed_commitment_indexes,
-                               if i < 0 or i >= L, return INVALID
+                               if i < 0 or i >= M, return INVALID
 
 Procedure:
 
