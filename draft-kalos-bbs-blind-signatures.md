@@ -174,8 +174,8 @@ Outputs:
 Procedure:
 
 1.  M = length(committed_messages)
-2.  generators = BBS.create_generators(M + 2, api_id)
-3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
+2.  blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+3.  (Q_2, J_1, ..., J_M) = blind_generators[1..M+1]
 
 4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages,
                                                                  api_id)
@@ -302,7 +302,7 @@ Deserialization:
 Procedure:
 
 1. generators = BBS.create_generators(L + 1, api_id)
-2. blind_generators = BBS.create_generators(M, "BLIND_" || api_id)
+2. blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 
 3. message_scalars = BBS.messages_to_scalars(messages, api_id)
 
