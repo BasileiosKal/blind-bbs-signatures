@@ -185,7 +185,7 @@ Procedure:
 6.  C = Q_2 * secret_prover_blind + J_1 * msg_1 + ... + J_M * msg_M
 7.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
 
-8.  challenge = calculate_blind_challenge(C, Cbar, generators, api_id)
+8.  challenge = calculate_blind_challenge(C, Cbar, blind_generators, api_id)
 
 9.  s^ = s~ + secret_prover_blind * challenge
 10. for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
