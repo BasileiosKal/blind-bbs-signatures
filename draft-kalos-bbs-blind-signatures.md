@@ -444,10 +444,7 @@ Parameters:
 
 Outputs:
 
-- (proof, disclosed_msgs, disclosed_idxs) a tuple comprising from an
-                                          octet string, an array of
-                                          octet strings and an array of
-                                          non-zero integers; or INVALID.
+- proof, an octet string.
 
 Deserialization:
 
@@ -550,7 +547,7 @@ Procedure:
 4. committed_message_scalars =  messages_to_scalars(
                                    disclosed_committed_messages, api_id)
 
-5. disclosed_data = get_disclosed_data(
+5. disclosed_data = get_disclosed_data_verify(L, M,
                                   message_scalars,
                                   committed_message_scalars,
                                   disclosed_indexes,
@@ -688,8 +685,8 @@ Outputs
 
 Deserialization:
 
-1. L = length(disclosed_indexes)
-2. M = length(disclosed_commitment_indexes)
+1. L = length(messages)
+2. M = length(committed_messages)
 3. (i1, ..., iL) = disclosed_indexes
 4. (j1, ...., jM) = disclosed_commitment_indexes
 
@@ -711,6 +708,8 @@ Procedure:
 
 7. return (disclosed_messages, indexes)
 ```
+
+TO DO: Write up et_disclosed_data_verify which is somewhat different from above.
 
 ## Blind Challenge Calculation
 
