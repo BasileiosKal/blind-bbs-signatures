@@ -460,26 +460,25 @@ Procedure:
 
 1.  generators = BBS.create_generators(L + 1, api_id)
 2.  blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+3.  generators.append(blind_generators)
 
-3.  message_scalars = BBS.messages_to_scalars(messages, api_id)
+4.  message_scalars = BBS.messages_to_scalars(messages, api_id)
 
-4.  committed_message_scalars = ()
-5.  if secret_prover_blind != 0, committed_message_scalars.append(
+5.  committed_message_scalars = ()
+6.  if secret_prover_blind != 0, committed_message_scalars.append(
                                      secret_prover_blind + signer_blind)
-6.  committed_message_scalars.append(BBS.messages_to_scalars(
+7.  committed_message_scalars.append(BBS.messages_to_scalars(
                                             committed_messages, api_id))
+8.  message_scalars.append(committed_message_scalars)
 
-7.  disclosed_data = get_disclosed_data(
-                                  messages,
-                                  committed_messages,
+9.  combined_disclosed_idxs = get_combined_idxs(
+                                  L,
                                   disclosed_indexes,
                                   disclosed_commitment_indexes)
 
-8.  if disclosed_data is INVALID, return INVALID.
-9.  (disclosed_msgs, disclosed_idxs) = disclosed_data
-
 10. proof = BBS.CoreProofGen(PK, signature, generators, header, ph,
-                                message_scalars, disclosed_idxs, api_id)
+                                message_scalars, combined_disclosed_idxs,
+                                api_id)
 11. return proof
 ```
 
@@ -513,9 +512,16 @@ Inputs:
 - disclosed_messages (OPTIONAL), a vector of octet strings. If not
                                  supplied, it defaults to the empty
                                  array ("()").
+- disclosed_committed_messages (OPTIONAL), a vector of octet strings. If not
+                                 supplied, it defaults to the empty
+                                 array ("()").
 - disclosed_indexes (OPTIONAL), vector of unsigned integers in ascending
                                 order. Indexes of disclosed messages. If
                                 not supplied, it defaults to the empty
+                                array ("()").
+- disclosed_committed_indexes (OPTIONAL), vector of unsigned integers in
+                                ascending order. Indexes of disclosed messages.
+                                If not supplied, it defaults to the empty
                                 array ("()").
 
 Parameters:
@@ -531,33 +537,29 @@ Outputs:
 
 Deserialization:
 
-1. proof_len_floor = 2 * octet_point_length + 3 * octet_scalar_length
+1. proof_len_floor = 3 * octet_point_length + 4 * octet_scalar_length
 2. if length(proof) < proof_len_floor, return INVALID
 3. U = floor((length(proof) - proof_len_floor) / octet_scalar_length)
 4. total_no_messages = length(disclosed_indexes) +
-                                 length(disclosed_committed_indexes) + U
+                       length(disclosed_committed_indexes) + U - 1
 5. M = total_no_messages - L
 
 Procedure:
 
 1. generators = BBS.create_generators(L + 1, api_id)
 2. blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+3.  generators.append(blind_generators)
 
-3. message_scalars = messages_to_scalars(disclosed_messages, api_id)
-4. committed_message_scalars =  messages_to_scalars(
+4. message_scalars = messages_to_scalars(disclosed_messages, api_id)
+5. committed_message_scalars =  messages_to_scalars(
                                    disclosed_committed_messages, api_id)
+6. message_scalars.append(committed_message_scalars)
 
-5. disclosed_data = get_disclosed_data_verify(L, M,
-                                  message_scalars,
-                                  committed_message_scalars,
-                                  disclosed_indexes,
-                                  disclosed_commitment_indexes)
-
-6. if disclosed_data is INVALID, return INVALID
-7. (disclosed_msgs, disclosed_idxs) = disclosed_data
+7. combined_disclosed_idxs = get_combined_idxs(L, disclosed_indexes,
+                               disclosed_commitment_indexes)
 
 8. result = CoreProofVerify(PK, proof, generators, header, ph,
-                             disclosed_msgs, disclosed_idxs, api_id)
+                             message_scalars, combined_disclosed_idxs, api_id)
 9. return result
 ```
 
@@ -651,22 +653,18 @@ Procedure:
 
 # Utilities
 
-## Disclosed Data Combination
+## Disclosed Index Combination
 
-Utility operation that combines the disclosed messages known to the Signed and committed by the Prover to a single disclosed messages array. Similarly, it will combine the disclosed indexes corresponding to the two different message arrays (i.e., the messages known to the Signer and the ones committed by the Prover) to a single disclosed indexes array.
+Utility operation that combines the disclosed indexes.
 
 ```
-disclosed_data = get_disclosed_data(messages,
-                                    committed_messages,
-                                    disclosed_indexes,
+combined_disclosed_idxs = get_combined_idxs(L, disclosed_indexes,
                                     disclosed_commitment_indexes)
 
 Inputs:
 
-- messages (OPTIONAL), vector of scalars. If not supplied, it defaults
-                       to the empty array "()".
-- committed_messages (OPTIONAL), vector of scalars. If not supplied, it
-                                 defaults to the empty array "()".
+- L (OPTIONAL), total number of signer provided messages. If not supplied, it
+                                 defaults to 0.
 - disclosed_indexes (OPTIONAL), vector of unsigned integers in ascending
                                 order. Indexes of disclosed messages. If
                                 not supplied, it defaults to the empty
@@ -679,37 +677,16 @@ Inputs:
 
 Outputs
 
-- disclosed_data, a vector comprising of two vectors, one corresponding
-                  to the disclosed messages and one to the disclosed
-                  indexes.
-
-Deserialization:
-
-1. L = length(messages)
-2. M = length(committed_messages)
-3. (i1, ..., iL) = disclosed_indexes
-4. (j1, ...., jM) = disclosed_commitment_indexes
-
-5. if length(messages) < L, return INVALID
-6. if length(committed_messages) < M, return INVALID
+- combined_disclosed_idxs, a vector comprising of the disclosed indexes.
 
 Procedure:
 
 // combine the disclosed indexes
-1. indexes = ()
+1. combined_disclosed_idxs = ()
 2. for i in disclosed_indexes: indexes.append(i)
 3. for j in disclosed_commitment_indexes: indexes.append(L + j + 1)
-
-// combine the disclosed messages
-4. disclosed_messages = (messages[i1], ..., messages[iL])
-5. disclosed_committed_messages = (committed_messages[j1], ...
-                                            ..., committed_messages[jM])
-6. disclosed_messages.append(disclosed_committed_messages)
-
-7. return (disclosed_messages, indexes)
+4. return combined_disclosed_idxs
 ```
-
-TO DO: Write up et_disclosed_data_verify which is somewhat different from above.
 
 ## Blind Challenge Calculation
 
