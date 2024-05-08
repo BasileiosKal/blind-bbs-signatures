@@ -368,24 +368,25 @@ Deserialization:
 Procedure:
 
 1. generators = BBS.create_generators(L + 1, api_id)
-2. blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+2. if secret_prover_blind == "", bind_generators = ()
+3. else blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 
-3. message_scalars = BBS.messages_to_scalars(messages, api_id)
+4. message_scalars = BBS.messages_to_scalars(messages, api_id)
 
-4. blind_message_scalars = ()
-5. if secret_prover_blind != 0, blind_message_scalars.append(
+5. blind_message_scalars = ()
+6. if secret_prover_blind != 0, blind_message_scalars.append(
                                      secret_prover_blind + signer_blind)
 
-6. blind_message_scalars.append(BBS.messages_to_scalars(
+7. blind_message_scalars.append(BBS.messages_to_scalars(
                                             committed_messages, api_id))
 
-7. res = BBS.CoreVerify(PK,
+8. res = BBS.CoreVerify(PK,
                         signature,
                         generators.append(blind_generators),
                         header,
                         message_scalars.append(blind_message_scalars),
                         api_id)
-8. return res
+9. return res
 ```
 
 ### Proof Generation
@@ -462,7 +463,7 @@ Procedure:
 
 1.  generators = BBS.create_generators(L + 1, api_id)
 2.  if secret_prover_blind == 0, blind_generators = ()
-3.  else blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+3.  else, blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 4.  generators.append(blind_generators)
 
 5.  message_scalars = BBS.messages_to_scalars(messages, api_id)
@@ -551,7 +552,7 @@ Procedure:
 
 1. generators = BBS.create_generators(L + 1, api_id)
 2. if M == -1, blind_generators = ()
-3  else blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+3  else, blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 4. generators.append(blind_generators)
 
 5. message_scalars = messages_to_scalars(disclosed_messages, api_id)
