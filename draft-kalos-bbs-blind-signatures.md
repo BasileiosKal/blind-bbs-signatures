@@ -302,11 +302,12 @@ Deserialization:
 Procedure:
 
 1. generators = BBS.create_generators(L + 1, api_id)
-2. blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+2. if commitment_with_proof == "", blind_generators = ()
+3. else blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 
-3. message_scalars = BBS.messages_to_scalars(messages, api_id)
+4. message_scalars = BBS.messages_to_scalars(messages, api_id)
 
-4. blind_sig = CoreBlindSign(SK,
+5. blind_sig = CoreBlindSign(SK,
                              PK,
                              commitment_with_proof,
                              generators,
@@ -315,8 +316,8 @@ Procedure:
                              message_scalars,
                              signer_blind,
                              api_id)
-5. if blind_sig is INVALID, return INVALID
-6. return blind_sig
+6. if blind_sig is INVALID, return INVALID
+7. return blind_sig
 ```
 
 ### Blind Signature Verification
@@ -419,7 +420,8 @@ Inputs:
                        defaults to the empty array "()".
 - committed_messages (OPTIONAL), a vector of octet strings. If not
                                  supplied, it defaults to the empty
-                                 array "()".
+                                 array "()". If secret_prover_blind is 0, this
+                                 should be an empty array.
 - disclosed_indexes (OPTIONAL), vector of unsigned integers in ascending
                                 order. Indexes of disclosed messages. If
                                 not supplied, it defaults to the empty
@@ -459,27 +461,28 @@ Deserialization:
 Procedure:
 
 1.  generators = BBS.create_generators(L + 1, api_id)
-2.  blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
-3.  generators.append(blind_generators)
+2.  if secret_prover_blind == 0, blind_generators = ()
+3.  else blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+4.  generators.append(blind_generators)
 
-4.  message_scalars = BBS.messages_to_scalars(messages, api_id)
+5.  message_scalars = BBS.messages_to_scalars(messages, api_id)
 
-5.  committed_message_scalars = ()
-6.  if secret_prover_blind != 0, committed_message_scalars.append(
+6.  committed_message_scalars = ()
+7.  if secret_prover_blind != 0, committed_message_scalars.append(
                                      secret_prover_blind + signer_blind)
-7.  committed_message_scalars.append(BBS.messages_to_scalars(
+8.  committed_message_scalars.append(BBS.messages_to_scalars(
                                             committed_messages, api_id))
-8.  message_scalars.append(committed_message_scalars)
+9.  message_scalars.append(committed_message_scalars)
 
-9.  combined_disclosed_idxs = get_combined_idxs(
+10.  combined_disclosed_idxs = get_combined_idxs(
                                   L,
                                   disclosed_indexes,
                                   disclosed_commitment_indexes)
 
-10. proof = BBS.CoreProofGen(PK, signature, generators, header, ph,
+11. proof = BBS.CoreProofGen(PK, signature, generators, header, ph,
                                 message_scalars, combined_disclosed_idxs,
                                 api_id)
-11. return proof
+12. return proof
 ```
 
 ### Proof Verification
@@ -547,20 +550,21 @@ Deserialization:
 Procedure:
 
 1. generators = BBS.create_generators(L + 1, api_id)
-2. blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
-3.  generators.append(blind_generators)
+2. if M == -1, blind_generators = ()
+3  else blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+4. generators.append(blind_generators)
 
-4. message_scalars = messages_to_scalars(disclosed_messages, api_id)
-5. committed_message_scalars =  messages_to_scalars(
+5. message_scalars = messages_to_scalars(disclosed_messages, api_id)
+6. committed_message_scalars =  messages_to_scalars(
                                    disclosed_committed_messages, api_id)
-6. message_scalars.append(committed_message_scalars)
+7. message_scalars.append(committed_message_scalars)
 
-7. combined_disclosed_idxs = get_combined_idxs(L, disclosed_indexes,
+8. combined_disclosed_idxs = get_combined_idxs(L, disclosed_indexes,
                                disclosed_commitment_indexes)
 
-8. result = CoreProofVerify(PK, proof, generators, header, ph,
+9. result = CoreProofVerify(PK, proof, generators, header, ph,
                              message_scalars, combined_disclosed_idxs, api_id)
-9. return result
+10. return result
 ```
 
 ## Core Operations
@@ -722,7 +726,7 @@ Procedure:
 4. return BBS.hash_to_scalar(c_octs, blind_challenge_dst)
 ```
 
-##  Commitment Validation and Deserialization
+## Commitment Validation and Deserialization
 
 The following is a helper operation used by the `CoreBlindSign` procedure ((#core-blind-sign)) to validate an optional commitment. The `commitment` input to `CoreBlindSign` is optional. If a `commitment` is not supplied, or if it is the `Identity_G1`, the following operation will return the `Identity_G1` as the commitment point, which will be ignored by all computations during `CoreBlindSign`.
 
