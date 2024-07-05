@@ -559,7 +559,7 @@ Procedure:
 6. if disclosed_data is INVALID, return INVALID
 7. (disclosed_msgs, disclosed_idxs) = disclosed_data
 
-8. result = CoreProofVerify(PK, proof, generators, header, ph,
+8. result = BBS.CoreProofVerify(PK, proof, generators, header, ph,
                              disclosed_msgs, disclosed_idxs, api_id)
 9. return result
 ```
