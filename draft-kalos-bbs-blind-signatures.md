@@ -174,7 +174,7 @@ Outputs:
 Procedure:
 
 1.  M = length(committed_messages)
-2.  generators = BBS.create_generators(M + 2, api_id)
+2.  generators = BBS.create_generators(M + 2, "BLIND_" || api_id)
 3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
 
 4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages,
@@ -371,20 +371,21 @@ Procedure:
 
 3. message_scalars = BBS.messages_to_scalars(messages, api_id)
 
-4. blind_message_scalars = ()
-5. if secret_prover_blind != 0, blind_message_scalars.append(
-                                     secret_prover_blind + signer_blind)
+4. committed_message_scalars = ()
+5. blind_factor = secret_prover_blind + signer_blind
+6. committed_message_scalars.append(blind_factor)
 
-6. blind_message_scalars.append(BBS.messages_to_scalars(
+7. committed_message_scalars.append(BBS.messages_to_scalars(
                                             committed_messages, api_id))
 
-7. res = BBS.CoreVerify(PK,
-                        signature,
-                        generators.append(blind_generators),
-                        header,
-                        message_scalars.append(blind_message_scalars),
-                        api_id)
-8. return res
+8. res = BBS.CoreVerify(
+                     PK,
+                     signature,
+                     generators.append(blind_generators),
+                     header,
+                     message_scalars.append(committed_message_scalars),
+                     api_id)
+9. return res
 ```
 
 ### Proof Generation
@@ -444,10 +445,7 @@ Parameters:
 
 Outputs:
 
-- (proof, disclosed_msgs, disclosed_idxs) a tuple comprising from an
-                                          octet string, an array of
-                                          octet strings and an array of
-                                          non-zero integers; or INVALID.
+- proof, an octet string; or INVALID.
 
 Deserialization:
 
@@ -467,22 +465,24 @@ Procedure:
 3.  message_scalars = BBS.messages_to_scalars(messages, api_id)
 
 4.  committed_message_scalars = ()
-5.  if secret_prover_blind != 0, committed_message_scalars.append(
-                                     secret_prover_blind + signer_blind)
+5.  blind_factor = secret_prover_blind + signer_blind
+6.  committed_message_scalars.append(blind_factor)
 6.  committed_message_scalars.append(BBS.messages_to_scalars(
                                             committed_messages, api_id))
 
-7.  disclosed_data = get_disclosed_data(
-                                  messages,
-                                  committed_messages,
-                                  disclosed_indexes,
-                                  disclosed_commitment_indexes)
+7.  indexes = ()
+8.  indexes.append(disclosed_indexes)
+9.  for j in disclosed_commitment_indexes: indexes.append(j + L + 1)
 
-8.  if disclosed_data is INVALID, return INVALID.
-9.  (disclosed_msgs, disclosed_idxs) = disclosed_data
-
-10. proof = BBS.CoreProofGen(PK, signature, generators, header, ph,
-                                message_scalars, disclosed_idxs, api_id)
+10. proof = BBS.CoreProofGen(
+                     PK,
+                     signature,
+                     generators.append(blind_generators),
+                     header,
+                     ph,
+                     message_scalars.append(committed_message_scalars),
+                     indexes,
+                     api_id)
 11. return proof
 ```
 
@@ -543,25 +543,29 @@ Deserialization:
 
 Procedure:
 
-1. generators = BBS.create_generators(L + 1, api_id)
-2. blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+1.  generators = BBS.create_generators(L + 1, api_id)
+2.  blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 
-3. message_scalars = messages_to_scalars(disclosed_messages, api_id)
-4. committed_message_scalars =  messages_to_scalars(
+3.  disclosed_message_scalars = messages_to_scalars(
+                                             disclosed_messages, api_id)
+4.  disclosed_committed_message_scalars = messages_to_scalars(
                                    disclosed_committed_messages, api_id)
+5.  message_scalars = disclosed_message_scalars.append(
+                                    disclosed_committed_message_scalars)
 
-5. disclosed_data = get_disclosed_data(
-                                  message_scalars,
-                                  committed_message_scalars,
-                                  disclosed_indexes,
-                                  disclosed_commitment_indexes)
+6.  indexes = ()
+7.  indexes.append(disclosed_indexes)
+8.  for j in disclosed_commitment_indexes: indexes.append(j + L + 1)
 
-6. if disclosed_data is INVALID, return INVALID
-7. (disclosed_msgs, disclosed_idxs) = disclosed_data
-
-8. result = BBS.CoreProofVerify(PK, proof, generators, header, ph,
-                             disclosed_msgs, disclosed_idxs, api_id)
-9. return result
+9.  result = BBS.CoreProofVerify(PK,
+                                 proof,
+                                 generators.append(blind_generators),
+                                 header,
+                                 ph,
+                                 message_scalars,
+                                 indexes,
+                                 api_id)
+10. return result
 ```
 
 ## Core Operations
@@ -640,9 +644,9 @@ Procedure:
 1. domain = calculate_domain(PK, generators.append(blind_generators),
                                                          header, api_id)
 
-2. e_octs = serialize((SK, domain, msg_1, ..., msg_L, signer_blind))
-3. e = BBS.hash_to_scalar(e_octs || commitment_with_proof,
-                                                          signature_dst)
+2. e_octs = serialize((SK, commitment_with_proof, signer_blind,
+                                             msg_1, ..., msg_L, domain))
+3. e = BBS.hash_to_scalar(e_octs, signature_dst)
 
 // if a commitment is not supplied, Q_2 = Identity_G1, meaning that
 // signer_blind will be ignored.
@@ -653,64 +657,6 @@ Procedure:
 ```
 
 # Utilities
-
-## Disclosed Data Combination
-
-Utility operation that combines the disclosed messages known to the Signed and committed by the Prover to a single disclosed messages array. Similarly, it will combine the disclosed indexes corresponding to the two different message arrays (i.e., the messages known to the Signer and the ones committed by the Prover) to a single disclosed indexes array.
-
-```
-disclosed_data = get_disclosed_data(messages,
-                                    committed_messages,
-                                    disclosed_indexes,
-                                    disclosed_commitment_indexes)
-
-Inputs:
-
-- messages (OPTIONAL), vector of scalars. If not supplied, it defaults
-                       to the empty array "()".
-- committed_messages (OPTIONAL), vector of scalars. If not supplied, it
-                                 defaults to the empty array "()".
-- disclosed_indexes (OPTIONAL), vector of unsigned integers in ascending
-                                order. Indexes of disclosed messages. If
-                                not supplied, it defaults to the empty
-                                array "()".
-- disclosed_commitment_indexes (OPTIONAL), vector of unsigned integers
-                                           in ascending order. Indexes
-                                           of disclosed messages. If not
-                                           supplied, it defaults to the
-                                           empty array "()".
-
-Outputs
-
-- disclosed_data, a vector comprising of two vectors, one corresponding
-                  to the disclosed messages and one to the disclosed
-                  indexes.
-
-Deserialization:
-
-1. L = length(disclosed_indexes)
-2. M = length(disclosed_commitment_indexes)
-3. (i1, ..., iL) = disclosed_indexes
-4. (j1, ...., jM) = disclosed_commitment_indexes
-
-5. if length(messages) < L, return INVALID
-6. if length(committed_messages) < M, return INVALID
-
-Procedure:
-
-// combine the disclosed indexes
-1. indexes = ()
-2. for i in disclosed_indexes: indexes.append(i)
-3. for j in disclosed_commitment_indexes: indexes.append(L + j + 1)
-
-// combine the disclosed messages
-4. disclosed_messages = (messages[i1], ..., messages[iL])
-5. disclosed_committed_messages = (committed_messages[j1], ...
-                                            ..., committed_messages[jM])
-6. disclosed_messages.append(disclosed_committed_messages)
-
-7. return (disclosed_messages, indexes)
-```
 
 ## Blind Challenge Calculation
 
@@ -740,9 +686,9 @@ Deserialization:
 
 Procedure:
 
-1. c_arr = (C, Cbar, M)
+1. c_arr = (M)
 2. c_arr.append(generators)
-3. c_octs = serialize(c_arr)
+3. c_octs = serialize(c_arr.append(C, Cbar))
 4. return BBS.hash_to_scalar(c_octs, blind_challenge_dst)
 ```
 
@@ -1194,8 +1140,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof001.re
 proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof001.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof001.signerBlind }}
 
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof001.disclosedData }}
-
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.T1 }}
     T2 = {{ $proofFixtures.bls12-381-shake-256.proof001.trace.T2 }}
@@ -1259,8 +1203,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof002.re
 
 proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof002.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof002.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof002.disclosedData }}
 
 Proof trace:
    T1 = {{ $proofFixtures.bls12-381-shake-256.proof002.trace.T1 }}
@@ -1327,8 +1269,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof003.re
 
 proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof003.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof003.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof003.disclosedData }}
 
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-shake-256.proof003.trace.T1 }}
@@ -1398,8 +1338,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof004.re
 
 proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof004.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof004.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof004.disclosedData }}
 
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-shake-256.proof004.trace.T1 }}
@@ -1471,8 +1409,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof005.re
 
 proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof005.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof005.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof005.disclosedData }}
 
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-shake-256.proof005.trace.T1 }}
@@ -1547,8 +1483,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof006.re
 
 proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof006.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof006.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof006.disclosedData }}
 
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-shake-256.proof006.trace.T1 }}
@@ -1626,8 +1560,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof007.re
 proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof007.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof007.signerBlind }}
 
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof007.disclosedData }}
-
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.T1 }}
     T2 = {{ $proofFixtures.bls12-381-shake-256.proof007.trace.T2 }}
@@ -1702,8 +1634,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-shake-256.proof008.re
 
 proverBlind = {{ $proofFixtures.bls12-381-shake-256.proof008.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-shake-256.proof008.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-shake-256.proof008.disclosedData }}
 
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-shake-256.proof008.trace.T1 }}
@@ -2041,8 +1971,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof001.reve
 proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof001.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof001.signerBlind }}
 
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof001.disclosedData }}
-
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.T1 }}
     T2 = {{ $proofFixtures.bls12-381-sha-256.proof001.trace.T2 }}
@@ -2106,8 +2034,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof002.reve
 
 proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof002.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof002.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof002.disclosedData }}
 
 Proof trace:
    T1 = {{ $proofFixtures.bls12-381-sha-256.proof002.trace.T1 }}
@@ -2174,8 +2100,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof003.reve
 
 proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof003.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof003.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof003.disclosedData }}
 
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-sha-256.proof003.trace.T1 }}
@@ -2245,8 +2169,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof004.reve
 
 proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof004.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof004.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof004.disclosedData }}
 
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-sha-256.proof004.trace.T1 }}
@@ -2318,8 +2240,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof005.reve
 
 proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof005.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof005.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof005.disclosedData }}
 
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-sha-256.proof005.trace.T1 }}
@@ -2394,8 +2314,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof006.reve
 
 proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof006.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof006.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof006.disclosedData }}
 
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-sha-256.proof006.trace.T1 }}
@@ -2473,8 +2391,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof007.reve
 proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof007.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof007.signerBlind }}
 
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof007.disclosedData }}
-
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.T1 }}
     T2 = {{ $proofFixtures.bls12-381-sha-256.proof007.trace.T2 }}
@@ -2549,8 +2465,6 @@ disclosed_commitment_indexes = {{ $proofFixtures.bls12-381-sha-256.proof008.reve
 
 proverBlind = {{ $proofFixtures.bls12-381-sha-256.proof008.proverBlind }}
 signerBlind = {{ $proofFixtures.bls12-381-sha-256.proof008.signerBlind }}
-
-(disclosed_msgs, disclosed_idxs) = {{ $proofFixtures.bls12-381-sha-256.proof008.disclosedData }}
 
 Proof trace:
     T1 = {{ $proofFixtures.bls12-381-sha-256.proof008.trace.T1 }}
