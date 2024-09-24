@@ -149,7 +149,7 @@ This document makes use of various operations defined by the BBS Signature Schem
 
 ### Commitment Computation
 
-This operation is used by the Prover to create a `commitment` to a set of messages (`committed_messages`), that they intend to include in the blind signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`secret_prover_blind`).
+This operation is used by the Prover to create a `commitment` to a set of messages (`committed_messages`), that they intend to include in the blind signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`secret_prover_blind`). The `commitment_with_proof` will be sent to the signer while the `secret_prover_blind` is to remain private to the prover.
 
 ```
 (commitment_with_proof, secret_prover_blind) = Commit(
@@ -174,7 +174,7 @@ Outputs:
 Procedure:
 
 1.  M = length(committed_messages)
-2.  generators = BBS.create_generators(M + 2, "BLIND_" || api_id)
+2.  generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
 
 4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages,
