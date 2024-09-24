@@ -149,7 +149,7 @@ This document makes use of various operations defined by the BBS Signature Schem
 
 ### Commitment Computation
 
-This operation is used by the Prover to create a `commitment` to a set of messages (`committed_messages`), that they intend to include in the blind signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`secret_prover_blind`).
+This operation is used by the Prover to create a `commitment` to a set of messages (`committed_messages`), that they intend to include in the blind signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`secret_prover_blind`). The `commitment_with_proof` will be sent to the signer while the `secret_prover_blind` is to remain private to the prover.
 
 ```
 (commitment_with_proof, secret_prover_blind) = Commit(
@@ -174,7 +174,7 @@ Outputs:
 Procedure:
 
 1.  M = length(committed_messages)
-2.  generators = BBS.create_generators(M + 2, "BLIND_" || api_id)
+2.  generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
 
 4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages,
@@ -302,7 +302,7 @@ Deserialization:
 Procedure:
 
 1. generators = BBS.create_generators(L + 1, api_id)
-2. blind_generators = BBS.create_generators(M, "BLIND_" || api_id)
+2. blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 
 3. message_scalars = BBS.messages_to_scalars(messages, api_id)
 
@@ -390,7 +390,7 @@ Procedure:
 
 ### Proof Generation
 
-This operation creates a BBS proof, which is a zero-knowledge, proof-of-knowledge, of a BBS signature, while optionally disclosing any subset of the signed messages. Note that in contrast to the `ProofGen` operation of [@!I-D.irtf-cfrg-bbs-signatures] (see [Section 3.5.3](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-generation-proofgen)), the `ProofGen` operation defined in this section accepts 2 different lists of messages and disclosed indexes, one for the messages known to the Signer (`messages`) and the corresponding disclosed indexes (`disclosed_indexes`) and one for the messages committed by the Prover (`committed_messages`) and the corresponding disclosed indexes (`disclosed_commitment_indexes`).
+This operation creates a BBS proof, which is a zero-knowledge, proof-of-knowledge, of a BBS signature, while optionally disclosing any subset of the signed messages. Note that in contrast to the `ProofGen` operation of [@!I-D.irtf-cfrg-bbs-signatures] (see [Section 3.5.3](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-proof-generation-proofgen)), the `ProofGen` operation defined in this section accepts two different lists of messages and disclosed indexes, one for the messages known to the Signer (`messages`) and the corresponding disclosed indexes (`disclosed_indexes`) and one for the messages committed by the Prover (`committed_messages`) and the corresponding disclosed indexes (`disclosed_commitment_indexes`).
 
 Furthermore, the operation also expects the `secret_prover_blind` (as returned from the `Commit` operation defined in (#commitment-computation)) and `signer_blind` (as inputted in the `BlindSign` operation defined in (#blind-signature-generation)) values. If the BBS signature is generated using a commitment value, then the `secret_prover_blind` returned by the `Commit` operation used to generate the commitment should be provided to the `ProofGen` operation (otherwise the resulting proof will be invalid).
 
@@ -534,11 +534,11 @@ Outputs:
 
 Deserialization:
 
-1. proof_len_floor = 2 * octet_point_length + 3 * octet_scalar_length
+1. proof_len_floor = 3 * octet_point_length + 4 * octet_scalar_length
 2. if length(proof) < proof_len_floor, return INVALID
 3. U = floor((length(proof) - proof_len_floor) / octet_scalar_length)
 4. total_no_messages = length(disclosed_indexes) +
-                                 length(disclosed_committed_indexes) + U
+                                 length(disclosed_committed_indexes) + U - 1
 5. M = total_no_messages - L
 
 Procedure:
@@ -692,7 +692,7 @@ Procedure:
 4. return BBS.hash_to_scalar(c_octs, blind_challenge_dst)
 ```
 
-##  Commitment Validation and Deserialization
+## Commitment Validation and Deserialization
 
 The following is a helper operation used by the `CoreBlindSign` procedure ((#core-blind-sign)) to validate an optional commitment. The `commitment` input to `CoreBlindSign` is optional. If a `commitment` is not supplied, or if it is the `Identity_G1`, the following operation will return the `Identity_G1` as the commitment point, which will be ignored by all computations during `CoreBlindSign`.
 
