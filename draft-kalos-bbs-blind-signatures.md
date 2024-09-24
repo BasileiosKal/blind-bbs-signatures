@@ -692,7 +692,7 @@ Procedure:
 4. return BBS.hash_to_scalar(c_octs, blind_challenge_dst)
 ```
 
-##  Commitment Validation and Deserialization
+## Commitment Validation and Deserialization
 
 The following is a helper operation used by the `CoreBlindSign` procedure ((#core-blind-sign)) to validate an optional commitment. The `commitment` input to `CoreBlindSign` is optional. If a `commitment` is not supplied, or if it is the `Identity_G1`, the following operation will return the `Identity_G1` as the commitment point, which will be ignored by all computations during `CoreBlindSign`.
 
