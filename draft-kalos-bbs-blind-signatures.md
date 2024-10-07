@@ -152,7 +152,7 @@ This document makes use of various operations defined by the BBS Signature Schem
 This operation is used by the Prover to create a `commitment` to a set of messages (`committed_messages`), that they intend to include in the blind signature. Note that this operation returns both the serialized combination of the commitment and its proof of correctness (`commitment_with_proof`), as well as the random scalar used to blind the commitment (`secret_prover_blind`).
 
 ```
-(commitment_with_proof, secret_prover_blind) = Commit(
+(commitment_with_proof, secret_prover_blind) = commit(
                                                    committed_messages,
                                                    api_id)
 
@@ -173,64 +173,55 @@ Outputs:
 
 Procedure:
 
-1.  M = length(committed_messages)
-2.  generators = BBS.create_generators(M + 2, "BLIND_" || api_id)
-3.  (Q_2, J_1, ..., J_M) = generators[1..M+1]
+1. committed_message_scalars = BBS.messages_to_scalars(
+                                             committed_messages, api_id)
 
-4.  (msg_1, ..., msg_M) = BBS.messages_to_scalars(committed_messages,
-                                                                 api_id)
-5.  (secret_prover_blind, s~, m~_1, ..., m~_M)
-                                         = BBS.get_random_scalars(M + 2)
+2. blind_generators = BBS.create_generators(
+                                  length(committed_message_scalars) + 1,
+                                  "BLIND_" || api_id)
 
-6.  C = Q_2 * secret_prover_blind + J_1 * msg_1 + ... + J_M * msg_M
-7.  Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
-
-8.  challenge = calculate_blind_challenge(C, Cbar, generators, api_id)
-
-9.  s^ = s~ + secret_prover_blind * challenge
-10. for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
-11. proof = (s^, (m^_1, ..., m^_M), challenge)
-12. commit_with_proof_octs = commitment_with_proof_to_octets(C, proof)
-13. return (commit_with_proof_octs, secret_prover_blind)
+3. return CoreCommit(committed_message_scalars,
+                             blind_generators, api_id)
 ```
 
-### Commitment Verification
+###  Commitment Validation and Deserialization
 
-This operation is used by the Signer to verify the correctness of a `commitment_proof` for a supplied `commitment`, over a list of points of G1 called the `blind_generators`, used to compute that commitment.
+The following is a helper operation used by the `CoreBlindSign` procedure ((#core-blind-sign)) to validate an optional commitment. The `commitment` input to `CoreBlindSign` is optional. If a `commitment` is not supplied, or if it is the `Identity_G1`, the following operation will return the `Identity_G1` as the commitment point, which will be ignored by all computations during `CoreBlindSign`.
 
 ```
-result = verify_commitment(commitment, commitment_proof,
+commit = deserialize_and_validate_commit(commitment_with_proof,
                                                blind_generators, api_id)
 
 Inputs:
 
-- commitment (REQUIRED), a commitment (see (#terminology)).
-- commitment_proof (REQUIRED), a commitment_proof (see (#terminology)).
-- blind_generators (REQUIRED), vector of pseudo-random points in G1.
+- commitment_with_proof (OPTIONAL), octet string. If it is not supplied
+                                    it defaults to the empty octet
+                                    string ("").
+- blind_generators (OPTIONAL), vector of points of G1. If it is not
+                               supplied it defaults to the empty set
+                               ("()").
 - api_id (OPTIONAL), octet string. If not supplied it defaults to the
                      empty octet string ("").
 
 Outputs:
 
-- result: either VALID or INVALID
-
-Deserialization:
-
-1. (s^, commitments, cp) = commitment_proof
-
-2. M = length(commitments)
-3. (m^_1, ..., m^_M) = commitments
-
-4. if length(blind_generators) != M + 1, return INVALID
-5. (Q_2, J_1, ..., J_M) = blind_generators
+- commit, a point of G1; or INVALID.
 
 Procedure:
 
-1. Cbar = Q_2 * s^ + J_1 * m^_1 + ... + J_M * m^_M + commitment * (-cp)
-2. cv = calculate_blind_challenge(commitment, Cbar, blind_generators,
-                                                                 api_id)
-3. if cv != cp, return INVALID
-4. return VALID
+1. if commitment_with_proof is the empty string (""), return Identity_G1
+
+2. com_res = octets_to_commitment_with_proof(commitment_with_proof)
+3. if com_res is INVALID, return INVALID
+
+4. (commit, commit_proof) = com_res
+5. if length(commit_proof[1]) + 1 != length(blind_generators),
+                                                          return INVALID
+
+6. validation_res = CoreCommitVerify(commit, commit_proof,
+                                               blind_generators, api_id)
+7. if validation_res is INVALID, return INVALID
+8. commitment
 ```
 
 ## Blind BBS Signatures Interface
@@ -304,17 +295,20 @@ Procedure:
 1. generators = BBS.create_generators(L + 1, api_id)
 2. blind_generators = BBS.create_generators(M, "BLIND_" || api_id)
 
-3. message_scalars = BBS.messages_to_scalars(messages, api_id)
+3. commit = deserialize_and_validate_commit(commitment_with_proof,
+                                               blind_generators, api_id)
+4. if commit is INVALID, return INVALID
 
-4. blind_sig = CoreBlindSign(SK,
-                             PK,
-                             commitment_with_proof,
-                             generators,
-                             blind_generators,
-                             header,
-                             message_scalars,
-                             signer_blind,
-                             api_id)
+5. (msg_1, ..., msg_L) = BBS.messages_to_scalars(messages, api_id)
+6. B = commit + P1 + Q_1 * msg_1 + ... + Q_L * msg_L
+
+4. blind_sig = FinalizeBlindSign(SK,
+                                 PK,
+                                 B,
+                                 generators,
+                                 blind_generators,
+                                 header,
+                                 api_id)
 5. if blind_sig is INVALID, return INVALID
 6. return blind_sig
 ```
@@ -327,7 +321,7 @@ This operation makes use of the `CoreVerify` operation as defined in [Section 3.
 
 ```
 result = Verify(PK, signature, header, messages, committed_messages,
-                                      secret_prover_blind, signer_blind)
+                                                    secret_prover_blind)
 
 Inputs:
 
@@ -345,8 +339,6 @@ Inputs:
                                  array "()".
 - secret_prover_blind (OPTIONAL), a scalar value. If not supplied it
                                   defaults to zero "0".
-- signer_blind (OPTIONAL), a scalar value. If not supplied it defaults
-                           to zero "0".
 
 
 Parameters:
@@ -359,24 +351,17 @@ Outputs:
 
 - result: either VALID or INVALID
 
-Deserialization:
-
-1. L = length(messages)
-2. M = length(committed_messages)
-
 Procedure:
 
-1. generators = BBS.create_generators(L + 1, api_id)
-2. blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+1. message_scalars = BBS.messages_to_scalars(messages, api_id)
 
-3. message_scalars = BBS.messages_to_scalars(messages, api_id)
-
-4. committed_message_scalars = ()
-5. blind_factor = secret_prover_blind + signer_blind
-6. committed_message_scalars.append(blind_factor)
-
-7. committed_message_scalars.append(BBS.messages_to_scalars(
+2. committed_message_scalars = ()
+4. committed_message_scalars.append(secret_prover_blind)
+5. committed_message_scalars.append(BBS.messages_to_scalars(
                                             committed_messages, api_id))
+
+6. generators = BBS.create_generators(length(message_scalars) + 1, api_id)
+7. blind_generators = BBS.create_generators(length(committed_message_scalars), "BLIND_" || api_id)
 
 8. res = BBS.CoreVerify(
                      PK,
@@ -397,13 +382,15 @@ Furthermore, the operation also expects the `secret_prover_blind` (as returned f
 This operation makes use of the `CoreProofGen` operation as defined in [Section 3.6.3](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-coreproofgen) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 ```
-proof = BlindProofGen(PK, signature, header, ph,
+proof = BlindProofGen(PK,
+                      signature,
+                      header,
+                      ph,
                       messages,
                       committed_messages,
                       disclosed_indexes,
                       disclosed_commitment_indexes,
-                      secret_prover_blind,
-                      signer_blind)
+                      secret_prover_blind)
 
 Inputs:
 
@@ -433,8 +420,6 @@ Inputs:
                                            "()".
 - secret_prover_blind (OPTIONAL), a scalar value. If not supplied it
                                   defaults to zero "0".
-- signer_blind (OPTIONAL), a scalar value. If not supplied it defaults
-                           to zero "0".
 
 
 Parameters:
@@ -459,16 +444,16 @@ Deserialization:
 
 Procedure:
 
-1.  generators = BBS.create_generators(L + 1, api_id)
-2.  blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+1.  message_scalars = BBS.messages_to_scalars(messages, api_id)
 
-3.  message_scalars = BBS.messages_to_scalars(messages, api_id)
-
-4.  committed_message_scalars = ()
-5.  blind_factor = secret_prover_blind + signer_blind
-6.  committed_message_scalars.append(blind_factor)
-6.  committed_message_scalars.append(BBS.messages_to_scalars(
+2.  committed_message_scalars = ()
+3.  committed_message_scalars.append(secret_prover_blind)
+4.  committed_message_scalars.append(BBS.messages_to_scalars(
                                             committed_messages, api_id))
+
+
+5.  generators = BBS.create_generators(length(message_scalars) + 1, api_id)
+6.  blind_generators = BBS.create_generators(length(committed_message_scalars) + 1, "BLIND_" || api_id)
 
 7.  indexes = ()
 8.  indexes.append(disclosed_indexes)
@@ -493,7 +478,11 @@ The ProofVerify operation validates a BBS proof, given the Signer's public key (
 This operation makes use of the `CoreProofVerify` operation as defined in [Section 3.6.4](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html#name-coreproofverify) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 ```
-result = BlindProofVerify(PK, proof, header, ph, L,
+result = BlindProofVerify(PK,
+                          proof,
+                          header,
+                          ph,
+                          L,
                           disclosed_messages,
                           disclosed_committed_messages,
                           disclosed_indexes,
@@ -570,20 +559,94 @@ Procedure:
 
 ## Core Operations
 
+### Core Commitment Computation
+
+```
+commit_with_proof = CoreCommit(blind_generators, committed_messages, api_id)
+
+Inputs:
+
+- blind_generators (REQUIRED), vector of pseudo-random points in G1.
+- committed_messages (OPTIONAL), a vector of scalars. If not supplied,
+                                 it defaults to the empty array ("()").
+- api_id (OPTIONAL), an octet string. If not supplied it defaults to the
+                     empty octet string ("").
+
+Deserialization:
+
+1. M = length(committed_messages)
+2. if length(blind_generators) != M + 1, return INVALID
+3. (Q_2, J_1, ..., J_M) = blind_generators
+
+Procedure:
+
+1. (secret_prover_blind, s~, m~_1, ..., m~_M)
+                                         = BBS.get_random_scalars(M + 2)
+2. C = Q_2 * secret_prover_blind + J_1 * msg_1 + ... + J_M * msg_M
+3. Cbar = Q_2 * s~ + J_1 * m~_1 + ... + J_M * m~_M
+
+4. challenge = calculate_blind_challenge(C, Cbar, blind_generators,
+                                                                 api_id)
+
+5. s^ = s~ + secret_prover_blind * challenge
+6. for m in (1, 2, ..., M): m^_i = m~_1 + msg_i * challenge
+
+7. proof = (s^, (m^_1, ..., m^_M), challenge)
+8. commit_with_proof = commitment_with_proof_to_octets(C, proof)
+9. return (commit_with_proof, secret_prover_blind)
+```
+
+### Core Commitment Verification
+
+This operation is used by the Signer to verify the correctness of a `commitment_proof` for a supplied `commitment`, over a list of points of G1 called the `blind_generators`, used to compute that commitment.
+
+```
+result = CoreCommitVerify(commitment, commitment_proof,
+                                               blind_generators, api_id)
+
+Inputs:
+
+- commitment (REQUIRED), a commitment (see (#terminology)).
+- commitment_proof (REQUIRED), a commitment_proof (see (#terminology)).
+- blind_generators (REQUIRED), vector of pseudo-random points in G1.
+- api_id (OPTIONAL), octet string. If not supplied it defaults to the
+                     empty octet string ("").
+
+Outputs:
+
+- result: either VALID or INVALID
+
+Deserialization:
+
+1. (s^, commitments, cp) = commitment_proof
+
+2. M = length(commitments)
+3. (m^_1, ..., m^_M) = commitments
+
+4. if length(blind_generators) != M + 1, return INVALID
+5. (Q_2, J_1, ..., J_M) = blind_generators
+
+Procedure:
+
+1. Cbar = Q_2 * s^ + J_1 * m^_1 + ... + J_M * m^_M + commitment * (-cp)
+2. cv = calculate_blind_challenge(commitment, Cbar, blind_generators,
+                                                                 api_id)
+3. if cv != cp, return INVALID
+4. return VALID
+```
+
 ### Core Blind Sign
 
 This operation computes a blind BBS signature, from a secret key (`SK`), a set of generators (points of G1), a supplied commitment with its proof of correctness (`commitment_with_proof`), a header (`header`) and a set of messages (`messages`). The operation also accepts a random scalar (`signer_blind`) and the identifier of the BBS Interface, calling this core operation.
 
 ```
-blind_signature = CoreBlindSign(SK,
-                                PK,
-                                generators,
-                                blind_generators,
-                                commitment_with_proof,
-                                header,
-                                messages,
-                                signer_blind,
-                                api_id)
+blind_signature = FinalizeBlindSign(SK,
+                                    PK,
+                                    B,
+                                    generators,
+                                    blind_generators,
+                                    header,
+                                    api_id)
 
 Inputs:
 
@@ -591,29 +654,16 @@ Inputs:
                  operation.
 - PK (REQUIRED), an octet string of the form outputted by SkToPk
                  provided the above SK as input.
+- B (REQUIRED), a point of G1, different than Identity_G1.
 - generators (REQUIRED), vector of pseudo-random points in G1.
 - blind_generators (OPTIONAL), vector of pseudo-random points in G1. If
                                not supplied it defaults to the empty
                                array.
-- commitment_with_proof (OPTIONAL), an octet string, representing a
-                                    serialized commitment and
-                                    commitment_proof, as the first
-                                    element outputted by the Commit
-                                    operation. If not supplied, it
-                                    defaults to the empty string ("").
 - header (OPTIONAL), an octet string containing context and application
                      specific information. If not supplied, it defaults
                      to an empty string.
-- messages (OPTIONAL), a vector of octet strings. If not supplied, it
-                       defaults to the empty array "()".
-- signer_blind (OPTIONAL), a random scalar value. If not supplied it
-                           defaults to zero "0".
-
-Parameters:
-
-- api_id, the octet string ciphersuite_id || "BLIND_H2G_HM2S_", where
-          ciphersuite_id is defined by the ciphersuite and
-          "BLIND_H2G_HM2S_"is an ASCII string composed of 15 bytes.
+- api_id (OPTIONAL), an octet string. If not supplied it defaults to the
+                     empty octet string ("").
 
 Outputs:
 
@@ -628,32 +678,21 @@ Definitions:
 
 Deserialization:
 
-1. L = length(messages)
-2. (msg_1, ..., msg_L) = messages
-3. (Q_1, H_1, ..., H_L) = generators
+1. L = length(generators) - 1
+2. M = length(blind_generators)
 
-4. Q_2 = Identity_G1
-5. if length(blind_generators) > 0, Q_2 = blind_generators[0]
-
-6. commit = deserialize_and_validate_commit(commitment_with_proof,
-                                               blind_generators, api_id)
-7. if commit is INVALID, return INVALID
+3. if L <= 0 or M <=0, return INVALID
+4. (Q_1, H_1, ..., H_L) = generators
+5. (J_1, ..., J_M) = blind_generators
 
 Procedure:
 
-1. domain = calculate_domain(PK, generators.append(blind_generators),
+1. domain = calculate_domain(PK, Q_1, (H_1, ..., H_L, J_1, ..., J_M),
                                                          header, api_id)
-
-2. e_octs = serialize((SK, commitment_with_proof, signer_blind,
-                                             msg_1, ..., msg_L, domain))
+2. e_octs = serialize((SK, B, domain))
 3. e = BBS.hash_to_scalar(e_octs, signature_dst)
-
-// if a commitment is not supplied, Q_2 = Identity_G1, meaning that
-// signer_blind will be ignored.
-4. commit = commit + Q_2 * signer_blind
-5. B = P1 + Q_1 * domain + H_1 * msg_1 + ... + H_L * msg_L + commit
-6. A = B * (1 / (SK + e))
-7. return signature_to_octets((A, e))
+4. A = B * (1 / (SK + e))
+5. return signature_to_octets((A, e))
 ```
 
 # Utilities
@@ -690,46 +729,6 @@ Procedure:
 2. c_arr.append(generators)
 3. c_octs = serialize(c_arr.append(C, Cbar))
 4. return BBS.hash_to_scalar(c_octs, blind_challenge_dst)
-```
-
-##  Commitment Validation and Deserialization
-
-The following is a helper operation used by the `CoreBlindSign` procedure ((#core-blind-sign)) to validate an optional commitment. The `commitment` input to `CoreBlindSign` is optional. If a `commitment` is not supplied, or if it is the `Identity_G1`, the following operation will return the `Identity_G1` as the commitment point, which will be ignored by all computations during `CoreBlindSign`.
-
-```
-commit = deserialize_and_validate_commit(commitment_with_proof,
-                                               blind_generators, api_id)
-
-Inputs:
-
-- commitment_with_proof (OPTIONAL), octet string. If it is not supplied
-                                    it defaults to the empty octet
-                                    string ("").
-- blind_generators (OPTIONAL), vector of points of G1. If it is not
-                               supplied it defaults to the empty set
-                               ("()").
-- api_id (OPTIONAL), octet string. If not supplied it defaults to the
-                     empty octet string ("").
-
-Outputs:
-
-- commit, a point of G1; or INVALID.
-
-Procedure:
-
-1. if commitment_with_proof is the empty string (""), return Identity_G1
-
-2. com_res = octets_to_commitment_with_proof(commitment_with_proof)
-3. if com_res is INVALID, return INVALID
-
-4. (commit, commit_proof) = com_res
-5. if length(commit_proof[1]) + 1 != length(blind_generators),
-                                                          return INVALID
-
-6. validation_res = verify_commitment(commit, commit_proof,
-                                               blind_generators, api_id)
-7. if validation_res is INVALID, return INVALID
-8. commitment
 ```
 
 ## Serialize
