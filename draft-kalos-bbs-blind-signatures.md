@@ -302,6 +302,10 @@ Procedure:
 5. (msg_1, ..., msg_L) = BBS.messages_to_scalars(messages, api_id)
 6. B = commit + P1 + Q_1 * msg_1 + ... + Q_L * msg_L
 
+6. res = B_calculate(messages, generators, commit)
+7. if res is INVALID, return INVALID
+8. (B) = res
+
 4. blind_sig = FinalizeBlindSign(SK,
                                  PK,
                                  B,
