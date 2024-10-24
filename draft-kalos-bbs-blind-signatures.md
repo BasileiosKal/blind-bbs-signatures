@@ -675,11 +675,11 @@ Definitions:
 Deserialization:
 
 1. L = length(generators) - 1
-2. M = length(blind_generators)
+2. M = length(blind_generators) - 1
 
 3. if L <= 0 or M <=0, return INVALID
 4. (Q_1, H_1, ..., H_L) = generators
-5. (J_1, ..., J_M) = blind_generators
+5. (Q_2, J_1, ..., J_M) = blind_generators
 
 Procedure:
 
