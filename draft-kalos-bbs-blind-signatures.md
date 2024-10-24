@@ -722,8 +722,8 @@ Deserialization:
 Procedure:
 
 1. B = Q_1 + H_1 * msg_1 + ... + H_L * msg_L + commitment
-4. if B is Identity_G1, return INVALID
-5. return B
+2. if B is Identity_G1, return INVALID
+3. return B
 ```
 
 ## Blind Challenge Calculation
