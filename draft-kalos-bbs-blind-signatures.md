@@ -286,7 +286,7 @@ Deserialization:
 Procedure:
 
 1.  generators = BBS.create_generators(L + 1, api_id)
-2.  blind_generators = BBS.create_generators(M, "BLIND_" || api_id)
+2.  blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 
 3.  commit = deserialize_and_validate_commit(commitment_with_proof,
                                                blind_generators, api_id)
