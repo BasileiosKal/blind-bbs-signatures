@@ -142,6 +142,7 @@ This document makes use of various operations defined by the BBS Signature Schem
 - `BBS.messages_to_scalars`: Refers to the `messages_to_scalars` operation defined in [Section 4.1.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-messages-to-scalars) of [@!I-D.irtf-cfrg-bbs-signatures].
 - `BBS.get_random_scalars`: Refers to the `get_random_scalars` operation defined in [Section 4.2.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-random-scalars) of [@!I-D.irtf-cfrg-bbs-signatures].
 - `BBS.hash_to_scalar`: Refers to the `hash_to_scalar` operation defined in [Section 4.2.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-hash-to-scalar) of [@!I-D.irtf-cfrg-bbs-signatures].
+- `BBS.calculate_domain`: Refers to the `calculate_domain` operation defined in [Section 4.2.3](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-07.html#domain-calculation) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 # Scheme Definition
 
@@ -682,7 +683,7 @@ Deserialization:
 
 Procedure:
 
-1. domain = calculate_domain(PK, Q_1, (H_1, ..., H_L, J_1, ..., J_M),
+1. domain = BBS.calculate_domain(PK, Q_1, (H_1, ..., H_L, J_1, ..., J_M),
                                                          header, api_id)
 2. e_octs = serialize((SK, B, domain))
 3. e = BBS.hash_to_scalar(e_octs, signature_dst)
