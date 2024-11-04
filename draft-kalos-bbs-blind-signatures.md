@@ -142,6 +142,7 @@ This document makes use of various operations defined by the BBS Signature Schem
 - `BBS.messages_to_scalars`: Refers to the `messages_to_scalars` operation defined in [Section 4.1.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-messages-to-scalars) of [@!I-D.irtf-cfrg-bbs-signatures].
 - `BBS.get_random_scalars`: Refers to the `get_random_scalars` operation defined in [Section 4.2.1](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-random-scalars) of [@!I-D.irtf-cfrg-bbs-signatures].
 - `BBS.hash_to_scalar`: Refers to the `hash_to_scalar` operation defined in [Section 4.2.2](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-05.html#name-hash-to-scalar) of [@!I-D.irtf-cfrg-bbs-signatures].
+- `BBS.calculate_domain`: Refers to the `calculate_domain` operation defined in [Section 4.2.3](https://www.ietf.org/archive/id/draft-irtf-cfrg-bbs-signatures-07.html#domain-calculation) of [@!I-D.irtf-cfrg-bbs-signatures].
 
 # Scheme Definition
 
@@ -285,7 +286,7 @@ Deserialization:
 Procedure:
 
 1.  generators = BBS.create_generators(L + 1, api_id)
-2.  blind_generators = BBS.create_generators(M, "BLIND_" || api_id)
+2.  blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
 
 3.  commit = deserialize_and_validate_commit(commitment_with_proof,
                                                blind_generators, api_id)
@@ -674,15 +675,15 @@ Definitions:
 Deserialization:
 
 1. L = length(generators) - 1
-2. M = length(blind_generators)
+2. M = length(blind_generators) - 1
 
 3. if L <= 0 or M <=0, return INVALID
 4. (Q_1, H_1, ..., H_L) = generators
-5. (J_1, ..., J_M) = blind_generators
+5. (Q_2, J_1, ..., J_M) = blind_generators
 
 Procedure:
 
-1. domain = calculate_domain(PK, Q_1, (H_1, ..., H_L, J_1, ..., J_M),
+1. domain = BBS.calculate_domain(PK, Q_1, (H_1, ..., H_L, J_1, ..., J_M),
                                                          header, api_id)
 2. e_octs = serialize((SK, B, domain))
 3. e = BBS.hash_to_scalar(e_octs, signature_dst)
@@ -721,8 +722,8 @@ Deserialization:
 Procedure:
 
 1. B = Q_1 + H_1 * msg_1 + ... + H_L * msg_L + commitment
-4. if B is Identity_G1, return INVALID
-5. return B
+2. if B is Identity_G1, return INVALID
+3. return B
 ```
 
 ## Blind Challenge Calculation
