@@ -119,6 +119,9 @@ secret\_prover\_blind
 signer\_blind
 : A random scalar used by the signer to optionally re-blind the received commitment.
 
+NONE
+: An empty function input indicator, used to specify that one of the OPTIONAL inputs of a procedure is not provided by the calling operation.
+
 ## Notation
 
 Notation defined by [@!I-D.irtf-cfrg-bbs-signatures] applies to this draft.
@@ -292,9 +295,9 @@ Procedure:
                                                blind_generators, api_id)
 4.  if commit is INVALID, return INVALID
 
-5.  (msg_1, ..., msg_L) = BBS.messages_to_scalars(messages, api_id)
+5.  message_scalars = BBS.messages_to_scalars(messages, api_id)
 
-6.  res = B_calculate(generators, commit, messages)
+6.  res = B_calculate(generators, commit, message_scalars)
 7.  if res is INVALID, return INVALID
 8.  (B) = res
 
@@ -349,24 +352,17 @@ Outputs:
 
 Procedure:
 
-1. message_scalars = BBS.messages_to_scalars(messages, api_id)
+1. (message_scalars, generators) = prepare_parameters(
+                                         messages,
+                                         committed_messages,
+                                         length(messages) + 1,
+                                         length(committed_messages) + 1,
+                                         secret_prover_blind,
+                                         api_id)
 
-2. committed_message_scalars = ()
-4. committed_message_scalars.append(secret_prover_blind)
-5. committed_message_scalars.append(BBS.messages_to_scalars(
-                                            committed_messages, api_id))
-
-6. generators = BBS.create_generators(length(message_scalars) + 1, api_id)
-7. blind_generators = BBS.create_generators(length(committed_message_scalars), "BLIND_" || api_id)
-
-8. res = BBS.CoreVerify(
-                     PK,
-                     signature,
-                     generators.append(blind_generators),
-                     header,
-                     message_scalars.append(committed_message_scalars),
-                     api_id)
-9. return res
+2. res = BBS.CoreVerify(PK, signature, generators, header,
+                                                message_scalars, api_id)
+3. return res
 ```
 
 ### Proof Generation
@@ -440,22 +436,19 @@ Deserialization:
 
 Procedure:
 
-1.  message_scalars = BBS.messages_to_scalars(messages, api_id)
+1. (message_scalars, generators) = prepare_parameters(
+                                         messages,
+                                         committed_messages,
+                                         length(messages) + 1,
+                                         length(committed_messages) + 1,
+                                         secret_prover_blind,
+                                         api_id)
 
-2.  committed_message_scalars = ()
-3.  committed_message_scalars.append(secret_prover_blind)
-4.  committed_message_scalars.append(BBS.messages_to_scalars(
-                                            committed_messages, api_id))
+2. indexes = ()
+3. indexes.append(disclosed_indexes)
+4. for j in disclosed_commitment_indexes: indexes.append(j + L + 1)
 
-
-5.  generators = BBS.create_generators(length(message_scalars) + 1, api_id)
-6.  blind_generators = BBS.create_generators(length(committed_message_scalars) + 1, "BLIND_" || api_id)
-
-7.  indexes = ()
-8.  indexes.append(disclosed_indexes)
-9.  for j in disclosed_commitment_indexes: indexes.append(j + L + 1)
-
-10. proof = BBS.CoreProofGen(
+5. proof = BBS.CoreProofGen(
                      PK,
                      signature,
                      generators.append(blind_generators),
@@ -464,7 +457,7 @@ Procedure:
                      message_scalars.append(committed_message_scalars),
                      indexes,
                      api_id)
-11. return proof
+6. return proof
 ```
 
 ### Proof Verification
@@ -528,29 +521,27 @@ Deserialization:
 
 Procedure:
 
-1.  generators = BBS.create_generators(L + 1, api_id)
-2.  blind_generators = BBS.create_generators(M + 1, "BLIND_" || api_id)
+1. (message_scalars, generators) = prepare_parameters(
+                                          disclosed_messages,
+                                          disclosed_committed_messages,
+                                          L + 1,
+                                          M,
+                                          NONE,
+                                          api_id)
 
-3.  disclosed_message_scalars = messages_to_scalars(
-                                             disclosed_messages, api_id)
-4.  disclosed_committed_message_scalars = messages_to_scalars(
-                                   disclosed_committed_messages, api_id)
-5.  message_scalars = disclosed_message_scalars.append(
-                                    disclosed_committed_message_scalars)
+2. indexes = ()
+3. indexes.append(disclosed_indexes)
+4. for j in disclosed_commitment_indexes: indexes.append(j + L + 1)
 
-6.  indexes = ()
-7.  indexes.append(disclosed_indexes)
-8.  for j in disclosed_commitment_indexes: indexes.append(j + L + 1)
-
-9.  result = BBS.CoreProofVerify(PK,
-                                 proof,
-                                 generators.append(blind_generators),
-                                 header,
-                                 ph,
-                                 message_scalars,
-                                 indexes,
-                                 api_id)
-10. return result
+5. result = BBS.CoreProofVerify(PK,
+                               proof,
+                               generators,
+                               header,
+                               ph,
+                               message_scalars,
+                               indexes,
+                               api_id)
+6. return result
 ```
 
 ## Core Operations
@@ -692,6 +683,54 @@ Procedure:
 ```
 
 # Utilities
+
+## Prepare Parameters
+
+```
+(message_scalars, generators) = prepare_parameters(
+                                                messages,
+                                                committed_messages,
+                                                generators_number,
+                                                blind_generators_number,
+                                                secret_prover_blind,
+                                                api_id)
+
+Inputs:
+
+- messages (OPTIONAL), a vector of octet strings. If not supplied, it
+                       defaults to the empty array "()".
+- committed_messages (OPTIONAL), a vector of octet strings. If not
+                                 supplied, it defaults to the empty
+                                 array "()".
+- secret_prover_blind (OPTIONAL), a scalar value or NONE. If not
+                                  supplied it defaults to zero "0".
+- api_id (OPTIONAL), an octet string. If not supplied it defaults to the
+                     empty octet string ("").
+
+Outputs:
+
+- (message_scalars, generators), A vector message_scalars of scalar
+                                 values and a vector generators of
+                                 points from the G1 subgroup; or INVALID
+
+Procedure:
+
+1. message_scalars = BBS.messages_to_scalars(messages, api_id)
+
+2. committed_message_scalars = ()
+
+3. if secret_prover_blind != NONE;
+                   committed_message_scalars.append(secret_prover_blind)
+4. committed_message_scalars.append(BBS.messages_to_scalars(
+                                            committed_messages, api_id))
+
+5. generators = BBS.create_generators(generators_number, api_id)
+6. blind_generators = BBS.create_generators(
+                            blind_generators_number, "BLIND_" || api_id)
+
+7. return (message_scalars.append(committed_message_scalars),
+                                    generators.append(blind_generators))
+```
 
 ## Calculate B value
 
