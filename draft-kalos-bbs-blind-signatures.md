@@ -451,10 +451,10 @@ Procedure:
 5. proof = BBS.CoreProofGen(
                      PK,
                      signature,
-                     generators.append(blind_generators),
+                     generators,
                      header,
                      ph,
-                     message_scalars.append(committed_message_scalars),
+                     message_scalars,
                      indexes,
                      api_id)
 6. return proof
