@@ -3,13 +3,13 @@ title = "Blind BBS Signatures"
 abbrev = "Blind BBS Signatures"
 ipr= "trust200902"
 area = "Internet"
-workgroup = "none"
+workgroup = "CFRG"
 submissiontype = "IETF"
 keyword = [""]
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-kalos-bbs-blind-signatures-latest"
+value = "draft-irtf-cfrg-bbs-blind-signatures-latest"
 status = "informational"
 
 [[author]]
